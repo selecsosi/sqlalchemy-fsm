@@ -1,6 +1,7 @@
 import collections
 from functools import wraps
 from sqlalchemy import types as SAtypes
+from sqlalchemy import inspect
 
 class FSMMeta(object):
     def __init__(self):
