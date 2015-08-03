@@ -9,8 +9,7 @@ class FSMMeta(object):
 
     @staticmethod
     def _get_state_field(instance):
-        fsm_fields = [c for c in instance.__table__.columns if\
-                isinstance(c.type, FSMField)]
+        fsm_fields = [c for c in inspect(type(instance)).columns if isinstance(c.type, FSMField)]
         if len(fsm_fields) == 0:
             raise TypeError('No FSMField found in model')
         if len(fsm_fields) > 1:
