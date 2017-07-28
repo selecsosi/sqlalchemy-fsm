@@ -3,7 +3,9 @@ from functools import wraps
 from sqlalchemy import types as SAtypes
 from sqlalchemy import inspect
 
+
 class FSMMeta(object):
+
     def __init__(self):
         self.transitions = collections.defaultdict()
         self.conditions = collections.defaultdict()
@@ -17,22 +19,20 @@ class FSMMeta(object):
             raise TypeError('More than one FSMField found in model')
         else:
             return fsm_fields[0]
-    
+
     @staticmethod
     def current_state(instance):
         field_name = FSMMeta._get_state_field(instance).name
         return getattr(instance, field_name)
 
     def has_transition(self, instance):
-        return self.transitions.has_key(FSMMeta.current_state(instance)) or\
-                self.transitions.has_key('*')
+        return FSMMeta.current_state(instance) in self.transitions or '*' in self.transitions
 
     def conditions_met(self, instance, *args, **kwargs):
         current_state = FSMMeta.current_state(instance)
-        next_state = self.transitions.has_key(current_state) and\
-                self.transitions[current_state] or self.transitions['*']
+        next_state = current_state in self.transitions and self.transitions[current_state] or self.transitions['*']
         return all(map(lambda f: f(instance, *args, **kwargs),
-            self.conditions[next_state]))
+                       self.conditions[next_state]))
 
     def to_next_state(self, instance):
         field_name = FSMMeta._get_state_field(instance).name
@@ -44,12 +44,14 @@ class FSMMeta(object):
             next_state = self.transitions['*']
         setattr(instance, field_name, next_state)
 
-def transition(source = '*', target = None, conditions = ()):
+
+def transition(source='*', target=None, conditions=()):
+
     def inner_transition(func):
         if not hasattr(func, '_sa_fsm'):
             setattr(func, '_sa_fsm', FSMMeta())
         if isinstance(source, collections.Sequence) and not\
-                isinstance(source, basestring):
+                isinstance(source, str):
             for state in source:
                 func._sa_fsm.transitions[state] = target
         else:
@@ -60,8 +62,8 @@ def transition(source = '*', target = None, conditions = ()):
         def _change_state(instance, *args, **kwargs):
             meta = func._sa_fsm
             if not meta.has_transition(instance):
-                raise NotImplementedError('Cant switch from %s using method %s'\
-                        % (FSMMeta.current_state(instance), func.func_name))
+                raise NotImplementedError('Cant switch from %s using method %s'
+                                          % (FSMMeta.current_state(instance), func.__name__))
             for condition in conditions:
                 if not condition(instance, *args, **kwargs):
                     return False
@@ -72,14 +74,14 @@ def transition(source = '*', target = None, conditions = ()):
         raise ValueError('Result state not specified')
     return inner_transition
 
+
 def can_proceed(bound_method, *args, **kwargs):
     if not hasattr(bound_method, '_sa_fsm'):
-        raise NotImplementedError('%s method is not transition' %\
-                bound_method.im_func.__name__)
+        raise NotImplementedError('%s method is not transition' %
+                                  bound_method.im_func.__name__)
     meta = bound_method._sa_fsm
-    return meta.has_transition(bound_method.im_self) and\
-            meta.conditions_met(bound_method.im_self, *args, **kwargs)
+    return meta.has_transition(bound_method.im_self) and meta.conditions_met(bound_method.im_self, *args, **kwargs)
+
 
 class FSMField(SAtypes.String):
     pass
-
