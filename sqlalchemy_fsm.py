@@ -44,18 +44,26 @@ class FSMMeta(object):
             next_state = self.transitions['*']
         setattr(instance, field_name, next_state)
 
+def is_valid_fsm_state(value):
+    return isinstance(value, basestring) and value
 
 def transition(source='*', target=None, conditions=()):
 
     def inner_transition(func):
         if not hasattr(func, '_sa_fsm'):
             setattr(func, '_sa_fsm', FSMMeta())
-        if isinstance(source, collections.Sequence) and not\
-                isinstance(source, str):
-            for state in source:
-                func._sa_fsm.transitions[state] = target
+
+        if is_valid_fsm_state(source):
+            all_sources = (source, )
+        elif isinstance(source, collections.Sequence):
+            all_sources = tuple(source)
         else:
-            func._sa_fsm.transitions[source] = target
+            raise NotImplementedError(source)
+
+        for state in all_sources:
+            assert is_valid_fsm_state(state)
+            func._sa_fsm.transitions[state] = target
+
         func._sa_fsm.conditions[target] = conditions
 
         @wraps(func)
