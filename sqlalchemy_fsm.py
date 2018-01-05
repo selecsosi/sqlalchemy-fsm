@@ -77,6 +77,8 @@ def transition(source='*', target=None, conditions=()):
                     return False
             func(instance, *args, **kwargs)
             meta.to_next_state(instance)
+            return True
+            
         return _change_state
     if not target:
         raise ValueError('Result state not specified')
