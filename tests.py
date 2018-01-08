@@ -1,7 +1,7 @@
 import unittest, sqlalchemy
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker
-from sqlalchemy_fsm import FSMField, transition, can_proceed
+from sqlalchemy_fsm import FSMField, transition, can_proceed, SetupError, PreconditionError
 
 engine = sqlalchemy.create_engine('sqlite:///:memory:', echo = True)
 session = sessionmaker(bind = engine)
@@ -96,7 +96,7 @@ class InvalidModel(Base):
 class InvalidModelTest(unittest.TestCase):
     def test_two_fsmfields_in_one_model_not_allowed(self):
         model = InvalidModel()
-        self.assertRaises(TypeError, model.validate)
+        self.assertRaises(SetupError, model.validate)
 
 
 class Document(Base):
@@ -163,8 +163,64 @@ class ConditionalTest(unittest.TestCase):
         self.model.publish()
         self.assertEqual(self.model.state, 'published')
         self.assertFalse(can_proceed(self.model.destroy))
-        self.model.destroy()
+        self.assertRaises(PreconditionError, self.model.destroy)
         self.assertEqual(self.model.state, 'published')
+
+def val_eq_condition(expected_value):
+    def bound_val_eq_condition(instance, actual_value):
+        return expected_value == actual_value
+    return bound_val_eq_condition
+
+def val_contains_condition(expected_values):
+    def bound_val_contains_condition(instance, actual_value):
+        return actual_value in expected_values
+    return bound_val_contains_condition
+
+class MultiSourceBlogPost(Base):
+
+    __tablename__ = 'MultiSourceBlogPost'
+    id = sqlalchemy.Column(sqlalchemy.Integer, primary_key = True)
+    state = sqlalchemy.Column(FSMField)
+    side_effect = sqlalchemy.Column(sqlalchemy.String)
+
+    def __init__(self, *args, **kwargs):
+        self.state = 'new'
+        super(MultiSourceBlogPost, self).__init__(*args, **kwargs)
+
+    @transition(source='new', target='hidden')
+    def hide(self):
+        pass
+
+    @transition(target='published', conditions=[
+        val_contains_condition([1,2])
+    ])
+    class publish(object):
+
+        @transition(source='new', conditions=[
+            val_eq_condition(1)
+        ])
+        def do_one(instance, value):
+            instance.side_effect = "did_one"
+
+        @transition(source='new', conditions=[
+            val_eq_condition(2)
+        ])
+        def do_two(instance, value):
+            instance.side_effect = "did_two"
+
+        @transition(source='hidden')
+        def do_unhide(instance, value):
+            instance.side_effect = "did_unhide"
+
+
+class MultiSourceBlogPostTest(unittest.TestCase):
+    def setUp(self):
+        self.model = MultiSourceBlogPost()
+
+    def test_transition_one(self):
+        self.model.publish(1)
+        self.assertEqual(self.model.state, 'published')
+        self.assertEqual(self.model.side_effect, 'did_one')
 
 if __name__ == '__main__':
     unittest.main()
