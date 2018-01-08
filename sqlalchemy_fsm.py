@@ -18,6 +18,9 @@ class PreconditionError(FSMException):
 class SetupError(FSMException):
     """Raised when FSM is configured incorrectly."""
 
+class InvalidSourceStateError(FSMException, NotImplementedError):
+    """Can not switch from current state to the requested state."""
+
 class BoundFSMFunction(object):
 
     meta = instance = state_field = internal_handler = None
@@ -197,7 +200,7 @@ def transition(source='*', target=None, conditions=()):
         def _change_fsm_state(instance, *args, **kwargs):
             bound_meta = _change_fsm_state._sa_fsm.get_bound(instance)
             if not bound_meta.transition_possible():
-                raise NotImplementedError('Cant switch from {} using method {}'.format(
+                raise InvalidSourceStateError('Cant switch from {} using method {}'.format(
                     bound_meta.current_state, func.__name__
                 ))
             if not bound_meta.conditions_met(args, kwargs):

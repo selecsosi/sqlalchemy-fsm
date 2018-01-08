@@ -1,7 +1,7 @@
 import unittest, sqlalchemy
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker
-from sqlalchemy_fsm import FSMField, transition, can_proceed, SetupError, PreconditionError
+from sqlalchemy_fsm import FSMField, transition, can_proceed, SetupError, PreconditionError, InvalidSourceStateError
 
 engine = sqlalchemy.create_engine('sqlite:///:memory:', echo = True)
 session = sessionmaker(bind = engine)
@@ -192,6 +192,10 @@ class MultiSourceBlogPost(Base):
     def hide(self):
         self.side_effect = "did_hide"
 
+    @transition(source='*', target='deleted')
+    def delete(self):
+        self.side_effect = "deleted"
+
     @transition(target='published', conditions=[
         val_contains_condition([1,2])
     ])
@@ -264,6 +268,16 @@ class MultiSourceBlogPostTest(unittest.TestCase):
             self.model.publish(arg)
             self.assertEqual(self.model.state, 'published')
             self.assertEqual(self.model.side_effect, 'do_publish_loop: {}'.format(arg))
+
+    def test_delete_new(self):
+        self.model.delete()
+        self.assertEqual(self.model.state, 'deleted')
+
+        # Can not switch from deleted to published
+        self.assertFalse(can_proceed(self.model.publish, 2))
+        self.assertRaises(InvalidSourceStateError, self.model.publish, 2)
+        self.assertEqual(self.model.state, 'deleted')
+
 
 if __name__ == '__main__':
     unittest.main()
