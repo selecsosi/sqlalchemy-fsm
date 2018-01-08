@@ -185,6 +185,7 @@ class MultiSourceBlogPost(Base):
 
     def __init__(self, *args, **kwargs):
         self.state = 'new'
+        self.side_effect = 'default'
         super(MultiSourceBlogPost, self).__init__(*args, **kwargs)
 
     @transition(source='new', target='hidden')
@@ -203,7 +204,7 @@ class MultiSourceBlogPost(Base):
             instance.side_effect = "did_one"
 
         @transition(source='new', conditions=[
-            val_eq_condition(2)
+            val_contains_condition([2, 42])
         ])
         def do_two(instance, value):
             instance.side_effect = "did_two"
@@ -218,9 +219,28 @@ class MultiSourceBlogPostTest(unittest.TestCase):
         self.model = MultiSourceBlogPost()
 
     def test_transition_one(self):
+        self.assertTrue(can_proceed(self.model.publish, 1))
+
         self.model.publish(1)
         self.assertEqual(self.model.state, 'published')
         self.assertEqual(self.model.side_effect, 'did_one')
+
+    def test_transition_two(self):
+        self.assertTrue(can_proceed(self.model.publish, 2))
+
+        self.model.publish(2)
+        self.assertEqual(self.model.state, 'published')
+        self.assertEqual(self.model.side_effect, 'did_two')
+
+    def test_transition_two_incorrect_arg(self):
+        # Transition should be rejected because of top-level `val_contains_condition([1,2])` constraint
+        self.assertRaises(PreconditionError, self.model.publish, 42)
+        self.assertEqual(self.model.state, 'new')
+        self.assertEqual(self.model.side_effect, 'default')
+
+        # Verify that the exception can still be avoided with can_proceed() call
+        self.assertFalse(can_proceed(self.model.publish, 42))
+        self.assertFalse(can_proceed(self.model.publish, 4242))
 
 if __name__ == '__main__':
     unittest.main()
