@@ -190,7 +190,7 @@ class MultiSourceBlogPost(Base):
 
     @transition(source='new', target='hidden')
     def hide(self):
-        pass
+        self.side_effect = "did_hide"
 
     @transition(target='published', conditions=[
         val_contains_condition([1,2])
@@ -211,7 +211,11 @@ class MultiSourceBlogPost(Base):
 
         @transition(source='hidden')
         def do_unhide(instance, value):
-            instance.side_effect = "did_unhide"
+            instance.side_effect = "did_unhide: {}".format(value)
+
+        @transition(source='published')
+        def do_publish_loop(instance, value):
+            instance.side_effect = "do_publish_loop: {}".format(value)
 
 
 class MultiSourceBlogPostTest(unittest.TestCase):
@@ -241,6 +245,25 @@ class MultiSourceBlogPostTest(unittest.TestCase):
         # Verify that the exception can still be avoided with can_proceed() call
         self.assertFalse(can_proceed(self.model.publish, 42))
         self.assertFalse(can_proceed(self.model.publish, 4242))
+
+    def test_hide(self):
+        self.model.hide()
+        self.assertEqual(self.model.state, 'hidden')
+        self.assertEqual(self.model.side_effect, 'did_hide')
+
+        self.model.publish(2)
+        self.assertEqual(self.model.state, 'published')
+        self.assertEqual(self.model.side_effect, 'did_unhide: 2')
+
+    def test_publish_loop(self):
+        self.model.publish(1)
+        self.assertEqual(self.model.state, 'published')
+        self.assertEqual(self.model.side_effect, 'did_one')
+
+        for arg in (1, 2, 1, 1, 2):
+            self.model.publish(arg)
+            self.assertEqual(self.model.state, 'published')
+            self.assertEqual(self.model.side_effect, 'do_publish_loop: {}'.format(arg))
 
 if __name__ == '__main__':
     unittest.main()
