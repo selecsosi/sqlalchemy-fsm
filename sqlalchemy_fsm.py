@@ -1,4 +1,5 @@
 import collections
+import warnings
 import inspect as py_inspect
 
 from functools import wraps, partial
@@ -66,7 +67,8 @@ class BoundFSMFunction(object):
             # Check that the function itself can be called with these args
             try:
                 py_inspect.getcallargs(self.internal_handler, *args, **kwargs)
-            except TypeError:
+            except TypeError as err:
+                warnings.warn("Failure to validate handler call args: {}".format(err))
                 # Can not map call args to handler's
                 out = False
                 if self.meta.conditions:

@@ -279,5 +279,74 @@ class MultiSourceBlogPostTest(unittest.TestCase):
         self.assertEqual(self.model.state, 'deleted')
 
 
+## Alternative syntax - separately defined transaction and sqlalchemy classes
+class SeparatePublishHandler(object):
+
+    @transition(source='new')
+    def do_one(self, instance):
+        instance.side_effect = "SeparatePublishHandler::did_one"
+
+    @transition(source='hidden')
+    def do_two(self, instance):
+        instance.side_effect = "SeparatePublishHandler::did_two"
+
+@transition(target='pre_decorated_publish')
+class SeparateDecoratedPublishHandler(object):
+
+    @transition(source='new')
+    def do_one(self, instance):
+        instance.side_effect = "SeparatePublishHandler::did_one"
+
+    @transition(source='hidden')
+    def do_two(self, instance):
+        instance.side_effect = "SeparatePublishHandler::did_two"
+
+class AltSyntaxBlogPost(Base):
+
+    __tablename__ = 'AltSyntaxBlogPost'
+    id = sqlalchemy.Column(sqlalchemy.Integer, primary_key = True)
+    state = sqlalchemy.Column(FSMField)
+    side_effect = sqlalchemy.Column(sqlalchemy.String)
+
+    def __init__(self, *args, **kwargs):
+        self.state = 'new'
+        self.side_effect = 'default'
+        super(AltSyntaxBlogPost, self).__init__(*args, **kwargs)
+
+    @transition(source='new', target='hidden')
+    def hide(self):
+        pass
+
+    pre_decorated_publish = SeparateDecoratedPublishHandler
+    post_decorated_publish = transition(target='post_decorated_publish')(SeparatePublishHandler)
+
+class AltSyntaxBlogPostTest(unittest.TestCase):
+    def setUp(self):
+        self.model = AltSyntaxBlogPost()
+
+    def test_pre_decorated_publish(self):
+        self.model.pre_decorated_publish()
+        self.assertEqual(self.model.state, 'pre_decorated_publish')
+        self.assertEqual(self.model.side_effect, 'SeparatePublishHandler::did_one')
+
+    def test_pre_decorated_publish_from_hidden(self):
+        self.model.hide()
+        self.assertEqual(self.model.state, 'hidden')
+        self.model.pre_decorated_publish()
+        self.assertEqual(self.model.state, 'pre_decorated_publish')
+        self.assertEqual(self.model.side_effect, 'SeparatePublishHandler::did_two')
+
+    def test_post_decorated_from_hidden(self):
+        self.model.post_decorated_publish()
+        self.assertEqual(self.model.state, 'post_decorated_publish')
+        self.assertEqual(self.model.side_effect, 'SeparatePublishHandler::did_one')
+
+    def test_post_decorated_publish_from_hidden(self):
+        self.model.hide()
+        self.assertEqual(self.model.state, 'hidden')
+        self.model.post_decorated_publish()
+        self.assertEqual(self.model.state, 'post_decorated_publish')
+        self.assertEqual(self.model.side_effect, 'SeparatePublishHandler::did_two')
+
 if __name__ == '__main__':
     unittest.main()
