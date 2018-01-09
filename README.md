@@ -132,6 +132,12 @@ Use the conditions like this:
         Side effects galore
         """
 
+You can also use FSM handlers to query the database. E.g.
+
+    session.query(BlogCls).filter(BlogCls.publish())
+
+will return all "Blog" objects whose current state matches "publish"'es target state.
+
 How does sqlalchemy-fsm diverge from django-fsm?
 ------------------------------------------------
 
