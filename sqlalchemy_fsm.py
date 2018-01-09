@@ -164,12 +164,18 @@ class BoundFSMObject(BoundFSMFunction):
                     super=my_target, sub=sub_meta.target
                 ))
             sub_conditions = my_conditions + sub_meta.conditions
-            sub_args = my_args + sub_meta.extra_call_args
+            sub_args = (handler_self, ) + my_args + sub_meta.extra_call_args
 
             sub_meta = FSMMeta(sub_meta.payload, sub_sources, sub_target, sub_conditions, sub_args, sub_meta.bound_cls)
             out.append(sub_meta.get_bound(instance))
 
         return out
+
+class BoundFSMClass(BoundFSMObject):
+
+    def __init__(self, meta, instance, internal_handler):
+        bound_object = internal_handler()
+        super(BoundFSMClass, self).__init__(meta, instance, bound_object)
 
 class FSMMeta(object):
 
@@ -222,8 +228,7 @@ def transition(source='*', target=None, conditions=()):
             meta = FSMMeta(func, source, target, conditions, (), BoundFSMFunction)
         elif py_inspect.isclass(func):
             # Assume a class with multiple handles for various source states
-            obj = func()
-            meta = FSMMeta(obj, source, target, conditions, (obj, ), BoundFSMObject)
+            meta = FSMMeta(func, source, target, conditions, (), BoundFSMClass)
         else:
             raise NotImplementedError("Do not know how to {!r}".format(func))
 
