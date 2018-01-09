@@ -1,7 +1,7 @@
 import collections
 import inspect as py_inspect
 
-from functools import wraps
+from functools import wraps, partial
 from sqlalchemy import types as SAtypes
 from sqlalchemy import inspect
 
@@ -46,7 +46,7 @@ class BoundFSMFunction(object):
         return (self.current_state in self.meta.sources) or ('*' in self.meta.sources)
 
     def conditions_met(self, args, kwargs):
-        args = (self.instance, ) + tuple(args)
+        args = self.meta.extra_call_args + (self.instance, ) + tuple(args)
         kwargs = dict(kwargs)
 
         out = True
@@ -76,20 +76,21 @@ class BoundFSMFunction(object):
         return out
 
     def to_next_state(self, args, kwargs):
-        self.internal_handler(self.instance, *args, **kwargs)
+        args = self.meta.extra_call_args + (self.instance, ) + tuple(args)
+        self.internal_handler(*args, **kwargs)
         setattr(self.instance, self.state_field.name, self.meta.target)
 
     def __repr__(self):
         return "<{} meta={!r} instance={!r}>".format(self.__class__.__name__, self.meta, self.instance)
 
 
-class BoundFSMClass(BoundFSMFunction):
+class BoundFSMObject(BoundFSMFunction):
     
     def __init__(self, *args, **kwargs):
-        super(BoundFSMClass, self).__init__(*args, **kwargs)
+        super(BoundFSMObject, self).__init__(*args, **kwargs)
         # Collect sub-handlers
         sub_handlers = []
-        sub_instance = self.internal_handler()
+        sub_instance = self.internal_handler
         for name in dir(sub_instance):
             try:
                 attr = getattr(sub_instance, name)
@@ -126,6 +127,7 @@ class BoundFSMClass(BoundFSMFunction):
         my_sources = self.meta.sources
         my_target = self.meta.target
         my_conditions = self.meta.conditions
+        my_args = self.meta.extra_call_args
 
         def source_intersection(sub_meta_sources):
             if '*' in my_sources:
@@ -146,7 +148,9 @@ class BoundFSMClass(BoundFSMFunction):
         out = []
 
         for sub_handler in self.sub_handlers:
+            handler_self = sub_handler.im_self
             sub_meta = sub_handler._sa_fsm
+
             sub_sources = source_intersection(sub_meta.sources)
             if not sub_sources:
                 raise SetupError('Source state superset {super} and subset {sub} are not compatable'.format(
@@ -158,8 +162,9 @@ class BoundFSMClass(BoundFSMFunction):
                     super=my_target, sub=sub_meta.target
                 ))
             sub_conditions = my_conditions + sub_meta.conditions
+            sub_args = my_args + sub_meta.extra_call_args
 
-            sub_meta = FSMMeta(sub_meta.payload, sub_sources, sub_target, sub_conditions, sub_meta.bound_cls)
+            sub_meta = FSMMeta(sub_meta.payload, sub_sources, sub_target, sub_conditions, sub_args, sub_meta.bound_cls)
             out.append(sub_meta.get_bound(instance))
 
         return out
@@ -167,12 +172,14 @@ class BoundFSMClass(BoundFSMFunction):
 class FSMMeta(object):
 
     payload = transitions = conditions = sources = bound_cls = None
+    extra_call_args = ()
 
-    def __init__(self, payload, source, target, conditions, bound_cls):
+    def __init__(self, payload, source, target, conditions, extra_args, bound_cls):
         self.bound_cls = bound_cls
         self.payload = payload
         self.conditions = tuple(conditions)
         self.target = target
+        self.extra_call_args = tuple(extra_args)
 
         if is_valid_fsm_state(source):
             all_sources = (source, )
@@ -187,9 +194,9 @@ class FSMMeta(object):
         return self.bound_cls(self, instance, self.payload)
 
     def __repr__(self):
-        return "<{} sources={!r} target={!r} conditions={!r} payload={!r}>".format(
+        return "<{} sources={!r} target={!r} conditions={!r} extra call args={!r} payload={!r}>".format(
             self.__class__.__name__, self.sources, self.target,
-            self.conditions, self.payload
+            self.conditions, self.extra_call_args, self.payload,
         )
 
 def transition(source='*', target=None, conditions=()):
@@ -207,11 +214,14 @@ def transition(source='*', target=None, conditions=()):
                 raise PreconditionError("Preconditions are not satisfied.")
             return bound_meta.to_next_state(args, kwargs)
 
+        _change_fsm_state.__name__ = "fsm::{}".format(func.__name__)
+
         if py_inspect.isfunction(func):
-            meta = FSMMeta(func, source, target, conditions, BoundFSMFunction)
+            meta = FSMMeta(func, source, target, conditions, (), BoundFSMFunction)
         elif py_inspect.isclass(func):
             # Assume a class with multiple handles for various source states
-            meta = FSMMeta(func, source, target, conditions, BoundFSMClass)
+            obj = func()
+            meta = FSMMeta(obj, source, target, conditions, (obj, ), BoundFSMObject)
         else:
             raise NotImplementedError("Do not know how to {!r}".format(func))
 

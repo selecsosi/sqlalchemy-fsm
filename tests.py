@@ -167,12 +167,12 @@ class ConditionalTest(unittest.TestCase):
         self.assertEqual(self.model.state, 'published')
 
 def val_eq_condition(expected_value):
-    def bound_val_eq_condition(instance, actual_value):
+    def bound_val_eq_condition(self, instance, actual_value):
         return expected_value == actual_value
     return bound_val_eq_condition
 
 def val_contains_condition(expected_values):
-    def bound_val_contains_condition(instance, actual_value):
+    def bound_val_contains_condition(self, instance, actual_value):
         return actual_value in expected_values
     return bound_val_contains_condition
 
@@ -204,21 +204,21 @@ class MultiSourceBlogPost(Base):
         @transition(source='new', conditions=[
             val_eq_condition(1)
         ])
-        def do_one(instance, value):
+        def do_one(self, instance, value):
             instance.side_effect = "did_one"
 
         @transition(source='new', conditions=[
             val_contains_condition([2, 42])
         ])
-        def do_two(instance, value):
+        def do_two(self, instance, value):
             instance.side_effect = "did_two"
 
         @transition(source='hidden')
-        def do_unhide(instance, value):
+        def do_unhide(self, instance, value):
             instance.side_effect = "did_unhide: {}".format(value)
 
         @transition(source='published')
-        def do_publish_loop(instance, value):
+        def do_publish_loop(self, instance, value):
             instance.side_effect = "do_publish_loop: {}".format(value)
 
 
