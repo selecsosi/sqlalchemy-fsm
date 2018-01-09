@@ -40,6 +40,10 @@ class BoundFSMFunction(object):
             self.state_field = fsm_fields[0]
 
     @property
+    def target_state(self):
+        return self.meta.target
+
+    @property
     def current_state(self):
         return getattr(self.instance, self.state_field.name)
 
@@ -80,7 +84,7 @@ class BoundFSMFunction(object):
     def to_next_state(self, args, kwargs):
         args = self.meta.extra_call_args + (self.instance, ) + tuple(args)
         self.internal_handler(*args, **kwargs)
-        setattr(self.instance, self.state_field.name, self.meta.target)
+        setattr(self.instance, self.state_field.name, self.target_state)
 
     def __repr__(self):
         return "<{} meta={!r} instance={!r}>".format(self.__class__.__name__, self.meta, self.instance)
@@ -103,6 +107,12 @@ class BoundFSMObject(BoundFSMFunction):
             sub_handlers.append(attr)
         self.sub_handlers = tuple(sub_handlers)
         self.bound_sub_metas = tuple(self.mk_restricted_bound_sub_metas())
+
+    @property
+    def target_state(self):
+        targets = tuple(set(meta.meta.target for meta in self.bound_sub_metas))
+        assert len(targets) == 1, "One and just one target expected"
+        return targets[0]
 
     def transition_possible(self):
         return any(sub.transition_possible() for sub in self.bound_sub_metas)
@@ -207,6 +217,14 @@ class FSMMeta(object):
             self.conditions, self.extra_call_args, self.payload,
         )
 
+def _get_bound_meta(bound_method):
+    try:
+        meta = bound_method._sa_fsm
+    except AttributeError:
+        raise NotImplementedError('This is not transition handler')
+
+    return meta.get_bound(bound_method.im_self)
+
 def transition(source='*', target=None, conditions=()):
 
     def inner_transition(func):
@@ -240,14 +258,12 @@ def transition(source='*', target=None, conditions=()):
 
 
 def can_proceed(bound_method, *args, **kwargs):
-    try:
-        meta = bound_method._sa_fsm
-    except AttributeError:
-        raise NotImplementedError('This is not transition handler')
-
-    bound_meta = meta.get_bound(bound_method.im_self)
+    bound_meta = _get_bound_meta(bound_method)
     return bound_meta.transition_possible() and bound_meta.conditions_met(args, kwargs)
 
+def is_current(bound_method):
+    bound_meta = _get_bound_meta(bound_method)
+    return bound_meta.target_state == bound_meta.current_state
 
 class FSMField(SAtypes.String):
     pass

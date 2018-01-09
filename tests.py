@@ -1,7 +1,7 @@
 import unittest, sqlalchemy
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker
-from sqlalchemy_fsm import FSMField, transition, can_proceed, SetupError, PreconditionError, InvalidSourceStateError
+from sqlalchemy_fsm import FSMField, transition, can_proceed, SetupError, PreconditionError, InvalidSourceStateError, is_current
 
 engine = sqlalchemy.create_engine('sqlite:///:memory:', echo = True)
 session = sessionmaker(bind = engine)
@@ -332,8 +332,11 @@ class AltSyntaxBlogPostTest(unittest.TestCase):
     def test_pre_decorated_publish_from_hidden(self):
         self.model.hide()
         self.assertEqual(self.model.state, 'hidden')
+        self.assertTrue(is_current(self.model.hide))
+        self.assertFalse(is_current(self.model.pre_decorated_publish))
         self.model.pre_decorated_publish()
         self.assertEqual(self.model.state, 'pre_decorated_publish')
+        self.assertTrue(is_current(self.model.pre_decorated_publish))
         self.assertEqual(self.model.side_effect, 'SeparatePublishHandler::did_two')
 
     def test_post_decorated_from_hidden(self):
