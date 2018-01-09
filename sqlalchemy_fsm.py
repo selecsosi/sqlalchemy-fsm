@@ -5,6 +5,7 @@ import inspect as py_inspect
 from functools import wraps, partial
 from sqlalchemy import types as SAtypes
 from sqlalchemy import inspect
+from sqlalchemy.ext.hybrid import hybrid_method
 
 
 def is_valid_fsm_state(value):
@@ -22,6 +23,17 @@ class SetupError(FSMException):
 class InvalidSourceStateError(FSMException, NotImplementedError):
     """Can not switch from current state to the requested state."""
 
+def _get_fsm_column(table_class):
+    fsm_fields = [c for c in inspect(table_class).columns if isinstance(c.type, FSMField)]
+
+    if len(fsm_fields) == 0:
+        raise SetupError('No FSMField found in model')
+    elif len(fsm_fields) > 1:
+        raise SetupError('More than one FSMField found in model ({})'.format(fsm_fields))
+
+    return fsm_fields[0]
+
+
 class BoundFSMFunction(object):
 
     meta = instance = state_field = internal_handler = None
@@ -31,13 +43,7 @@ class BoundFSMFunction(object):
         self.instance = instance
         self.internal_handler = internal_handler
         # Get the state field
-        fsm_fields = [c for c in inspect(type(self.instance)).columns if isinstance(c.type, FSMField)]
-        if len(fsm_fields) == 0:
-            raise SetupError('No FSMField found in model')
-        elif len(fsm_fields) > 1:
-            raise SetupError('More than one FSMField found in model ({})'.format(fsm_fields))
-        else:
-            self.state_field = fsm_fields[0]
+        self.state_field = _get_fsm_column(type(self.instance))
 
     @property
     def target_state(self):
@@ -240,6 +246,12 @@ def transition(source='*', target=None, conditions=()):
                 raise PreconditionError("Preconditions are not satisfied.")
             return bound_meta.to_next_state(args, kwargs)
 
+        def _query_fsm_state(cls):
+            column = _get_fsm_column(cls)
+            target = _change_fsm_state._sa_fsm.target
+            assert target, "Target must be defined at this level."
+            return column == target
+
         _change_fsm_state.__name__ = "fsm::{}".format(func.__name__)
 
         if py_inspect.isfunction(func):
@@ -252,7 +264,7 @@ def transition(source='*', target=None, conditions=()):
 
         _change_fsm_state._sa_fsm = meta
 
-        return _change_fsm_state
+        return hybrid_method(_change_fsm_state, _query_fsm_state)
 
     return inner_transition
 

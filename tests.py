@@ -78,6 +78,38 @@ class FSMFieldTest(unittest.TestCase):
         self.assertEqual(self.model.state, 'moderated')
 
 
+    def test_query_filter(self):
+        model1 = BlogPost()
+        model2 = BlogPost()
+        model3 = BlogPost()
+        model4 = BlogPost()
+        model3.publish()
+        model4.publish()
+
+        s = session()
+        s.add_all([model1, model2, model3, model4])
+        s.commit()
+
+        ids = [model1.id, model2.id, model3.id, model4.id]
+
+        # Check that one can query by fsm handler
+        query_results = s.query(BlogPost).filter(
+            BlogPost.publish(),
+            BlogPost.id.in_(ids),
+        ).all()
+        assert len(query_results) == 2, query_results
+        assert model3 in query_results
+        assert model4 in query_results
+
+        negated_query_results = s.query(BlogPost).filter(
+            ~BlogPost.publish(),
+            BlogPost.id.in_(ids),
+        ).all()
+        assert len(negated_query_results) == 2, query_results
+        assert model1 in negated_query_results
+        assert model2 in negated_query_results
+
+
 class InvalidModel(Base):
     __tablename__ = 'invalidmodel'
     id = sqlalchemy.Column(sqlalchemy.Integer, primary_key = True)
@@ -352,4 +384,5 @@ class AltSyntaxBlogPostTest(unittest.TestCase):
         self.assertEqual(self.model.side_effect, 'SeparatePublishHandler::did_two')
 
 if __name__ == '__main__':
+    Base.metadata.create_all(engine)
     unittest.main()
