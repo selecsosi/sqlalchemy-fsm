@@ -91,6 +91,12 @@ normally. Say publish() required a date for some reason:
     else:
         post.publish(the_date)
 
+If your code needs to know the state model is currently in, you can call
+the is_current() function.
+
+    if is_current(post.delete):
+        raise Http404
+
 If you require some conditions to be met before changing state, use the
 `conditions` argument to `transition`. `conditions` must be a list of functions
 that take one argument, the model instance.  The function must return either
