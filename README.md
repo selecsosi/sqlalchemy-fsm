@@ -33,6 +33,40 @@ Use the `transition` decorator to annotate model methods
 `source` parameter accepts a list of states, or an individual state.
 You can use `*` for source, to allow switching to `target` from any state.
 
+Transition can be also used on a class object to create a group of handlers
+for same target state.
+
+    @transition(target='published')
+    class PublishHandler(object):
+
+        @transition(source='new')
+        def do_one(self, instance, value):
+            instance.side_effect = "published from new"
+
+        @transition(source='draft')
+        def do_two(self, instance, value):
+            instance.side_effect = "published from draft"
+
+
+    class BlogPost(db.Model):
+        ...
+        publish = PublishHandler
+
+The transition is still to be invoked by calling the model's publish() method.
+
+An alternative inline class syntax is supported too:
+
+    @transition(target='published')
+    class publish(object):
+
+        @transition(source='new')
+        def do_one(self, instance, value):
+            instance.side_effect = "published from new"
+
+        @transition(source='draft')
+        def do_two(self, instance, value):
+            instance.side_effect = "published from draft"
+
 If calling publish() succeeds without raising an exception, the state field
 will be changed, but not written to the database.
 
@@ -76,7 +110,7 @@ You can use ordinary functions
 Or model methods
 
     def can_destroy(self):
-        return self.is_under_investigation()
+        return not self.is_under_investigation()
 
 Use the conditions like this:
 
@@ -91,7 +125,6 @@ Use the conditions like this:
         """
         Side effects galore
         """
-
 
 How does sqlalchemy-fsm diverge from django-fsm?
 ------------------------------------------------
