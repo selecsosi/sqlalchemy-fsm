@@ -2,5 +2,6 @@
 
 from sqlalchemy import types as SAtypes
 
+
 class FSMField(SAtypes.String):
     pass

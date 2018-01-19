@@ -10,10 +10,11 @@ from functools import partial
 
 from . import exc, util, meta
 
+
 class BoundFSMFunction(object):
 
     meta = instance = state_field = internal_handler = None
-    
+
     def __init__(self, meta, instance, internal_handler):
         self.meta = meta
         self.instance = instance
@@ -30,7 +31,11 @@ class BoundFSMFunction(object):
         return getattr(self.instance, self.state_field.name)
 
     def transition_possible(self):
-        return (self.current_state in self.meta.sources) or ('*' in self.meta.sources)
+        return (
+            self.current_state in self.meta.sources
+        ) or (
+            '*' in self.meta.sources
+        )
 
     def conditions_met(self, args, kwargs):
         args = self.meta.extra_call_args + (self.instance, ) + tuple(args)
@@ -54,13 +59,17 @@ class BoundFSMFunction(object):
             try:
                 py_inspect.getcallargs(self.internal_handler, *args, **kwargs)
             except TypeError as err:
-                warnings.warn("Failure to validate handler call args: {}".format(err))
+                warnings.warn(
+                    "Failure to validate handler call args: {}".format(err))
                 # Can not map call args to handler's
                 out = False
                 if self.meta.conditions:
-                    raise exc.SetupError("Mismatch beteen args accepted by preconditons ({!r}) & handler ({!r})".format(
-                        self.meta.conditions, self.internal_handler
-                    ))
+                    raise exc.SetupError(
+                        "Mismatch beteen args accepted by preconditons "
+                        "({!r}) & handler ({!r})".format(
+                            self.meta.conditions, self.internal_handler
+                        )
+                    )
         return out
 
     def to_next_state(self, args, kwargs):
@@ -69,11 +78,12 @@ class BoundFSMFunction(object):
         setattr(self.instance, self.state_field.name, self.target_state)
 
     def __repr__(self):
-        return "<{} meta={!r} instance={!r}>".format(self.__class__.__name__, self.meta, self.instance)
+        return "<{} meta={!r} instance={!r}>".format(
+            self.__class__.__name__, self.meta, self.instance)
 
 
 class BoundFSMObject(BoundFSMFunction):
-    
+
     def __init__(self, *args, **kwargs):
         super(BoundFSMObject, self).__init__(*args, **kwargs)
         # Collect sub-handlers
@@ -112,7 +122,10 @@ class BoundFSMObject(BoundFSMFunction):
         ]
         if len(can_transition_with) > 1:
             raise exc.SetupError(
-                "Can transition with multiple handlers ({})".format(can_transition_with))
+                "Can transition with multiple handlers ({})".format(
+                    can_transition_with
+                )
+            )
         else:
             assert can_transition_with
         return can_transition_with[0].to_next_state(args, kwargs)
@@ -135,7 +148,8 @@ class BoundFSMObject(BoundFSMFunction):
                 return False
 
         def target_intersection(sub_meta_target):
-            """Only two cases are supported: same target values and sub_meta target being set to `False`"""
+            # Only two cases are supported:
+            #   same target values and sub_meta target being set to `False`
             if sub_meta_target and (sub_meta_target != my_target):
                 return None
             return my_target
@@ -148,26 +162,34 @@ class BoundFSMObject(BoundFSMFunction):
 
             sub_sources = source_intersection(sub_meta.sources)
             if not sub_sources:
-                raise exc.SetupError('Source state superset {super} and subset {sub} are not compatable'.format(
-                    super=my_sources, sub=sub_meta.sources))
+                raise exc.SetupError(
+                    'Source state superset {super} '
+                    'and subset {sub} are not compatable'.format(
+                        super=my_sources, sub=sub_meta.sources
+                    )
+                )
 
             sub_target = target_intersection(sub_meta.target)
             if not sub_target:
-                raise exc.SetupError('Targets {super} and {sub} are not compatable'.format(
-                    super=my_target, sub=sub_meta.target
-                ))
+                raise exc.SetupError(
+                    'Targets {super} and {sub} are not compatable'.format(
+                        super=my_target, sub=sub_meta.target
+                    )
+                )
             sub_conditions = my_conditions + sub_meta.conditions
             sub_args = (handler_self, ) + my_args + sub_meta.extra_call_args
 
             sub_meta = meta.FSMMeta(
-                sub_meta.payload, sub_sources, sub_target, sub_conditions, sub_args, sub_meta.bound_cls)
+                sub_meta.payload, sub_sources, sub_target,
+                sub_conditions, sub_args, sub_meta.bound_cls
+            )
             out.append(sub_meta.get_bound(instance))
 
         return out
+
 
 class BoundFSMClass(BoundFSMObject):
 
     def __init__(self, meta, instance, internal_handler):
         bound_object = internal_handler()
         super(BoundFSMClass, self).__init__(meta, instance, bound_object)
-

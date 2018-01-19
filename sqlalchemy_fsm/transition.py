@@ -13,10 +13,12 @@ def transition(source='*', target=None, conditions=()):
     def inner_transition(func):
 
         if py_inspect.isfunction(func):
-            meta = FSMMeta(func, source, target, conditions, (), bound.BoundFSMFunction)
+            meta = FSMMeta(
+                func, source, target, conditions, (), bound.BoundFSMFunction)
         elif py_inspect.isclass(func):
             # Assume a class with multiple handles for various source states
-            meta = FSMMeta(func, source, target, conditions, (), bound.BoundFSMClass)
+            meta = FSMMeta(
+                func, source, target, conditions, (), bound.BoundFSMClass)
         else:
             raise NotImplementedError("Do not know how to {!r}".format(func))
 
@@ -24,9 +26,11 @@ def transition(source='*', target=None, conditions=()):
         def _change_fsm_state(instance, *args, **kwargs):
             bound_meta = _change_fsm_state._sa_fsm.get_bound(instance)
             if not bound_meta.transition_possible():
-                raise exc.InvalidSourceStateError('Cant switch from {} using method {}'.format(
-                    bound_meta.current_state, func.__name__
-                ))
+                raise exc.InvalidSourceStateError(
+                    'Cant switch from {} using method {}'.format(
+                        bound_meta.current_state, func.__name__
+                    )
+                )
             if not bound_meta.conditions_met(args, kwargs):
                 raise exc.PreconditionError("Preconditions are not satisfied.")
             return bound_meta.to_next_state(args, kwargs)

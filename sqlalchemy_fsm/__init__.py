@@ -1,5 +1,5 @@
 from . import (
-	exc,
+    exc,
 )
 
 from .sqltypes import FSMField
@@ -7,6 +7,6 @@ from .sqltypes import FSMField
 from .transition import transition
 
 from .func import (
-	can_proceed,
-	is_current,
+    can_proceed,
+    is_current,
 )
