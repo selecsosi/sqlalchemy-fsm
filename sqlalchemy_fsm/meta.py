@@ -41,7 +41,7 @@ class FSMMeta(object):
         return self.bound_cls(self, instance, self.payload)
 
     def __repr__(self):
-        return "<{} sources={!r} target={!r} conditions={!r} "
+        return "<{} sources={!r} target={!r} conditions={!r} " \
         "extra call args={!r} payload={!r}>".format(
             self.__class__.__name__, self.sources, self.target,
             self.conditions, self.extra_call_args, self.payload,
