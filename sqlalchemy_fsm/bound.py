@@ -1,38 +1,14 @@
-import collections
+"""
+Non-meta objects that are bound to a particular table & sqlalchemy instance.
+"""
+
 import warnings
 import inspect as py_inspect
 
-from functools import wraps, partial
-from sqlalchemy import types as SAtypes
-from sqlalchemy import inspect
-from sqlalchemy.ext.hybrid import hybrid_method
+from functools import partial
 
 
-def is_valid_fsm_state(value):
-    return isinstance(value, basestring) and value
-
-class FSMException(Exception):
-    """Generic Finite State Machine Exception."""
-
-class PreconditionError(FSMException):
-    """Raised when transition conditions are not satisfied."""
-
-class SetupError(FSMException):
-    """Raised when FSM is configured incorrectly."""
-
-class InvalidSourceStateError(FSMException, NotImplementedError):
-    """Can not switch from current state to the requested state."""
-
-def _get_fsm_column(table_class):
-    fsm_fields = [c for c in inspect(table_class).columns if isinstance(c.type, FSMField)]
-
-    if len(fsm_fields) == 0:
-        raise SetupError('No FSMField found in model')
-    elif len(fsm_fields) > 1:
-        raise SetupError('More than one FSMField found in model ({})'.format(fsm_fields))
-
-    return fsm_fields[0]
-
+from . import exc, util, meta
 
 class BoundFSMFunction(object):
 
@@ -43,7 +19,7 @@ class BoundFSMFunction(object):
         self.instance = instance
         self.internal_handler = internal_handler
         # Get the state field
-        self.state_field = _get_fsm_column(type(self.instance))
+        self.state_field = util.get_fsm_column(type(self.instance))
 
     @property
     def target_state(self):
@@ -82,7 +58,7 @@ class BoundFSMFunction(object):
                 # Can not map call args to handler's
                 out = False
                 if self.meta.conditions:
-                    raise SetupError("Mismatch beteen args accepted by preconditons ({!r}) & handler ({!r})".format(
+                    raise exc.SetupError("Mismatch beteen args accepted by preconditons ({!r}) & handler ({!r})".format(
                         self.meta.conditions, self.internal_handler
                     ))
         return out
@@ -135,7 +111,8 @@ class BoundFSMObject(BoundFSMFunction):
             if sub.transition_possible() and sub.conditions_met(args, kwargs)
         ]
         if len(can_transition_with) > 1:
-            raise Exception("Can transition with multiple handlers ({})".format(can_transition_with))
+            raise exc.SetupError(
+                "Can transition with multiple handlers ({})".format(can_transition_with))
         else:
             assert can_transition_with
         return can_transition_with[0].to_next_state(args, kwargs)
@@ -160,7 +137,7 @@ class BoundFSMObject(BoundFSMFunction):
         def target_intersection(sub_meta_target):
             """Only two cases are supported: same target values and sub_meta target being set to `False`"""
             if sub_meta_target and (sub_meta_target != my_target):
-                return True
+                return None
             return my_target
 
         out = []
@@ -171,18 +148,19 @@ class BoundFSMObject(BoundFSMFunction):
 
             sub_sources = source_intersection(sub_meta.sources)
             if not sub_sources:
-                raise SetupError('Source state superset {super} and subset {sub} are not compatable'.format(
-                    super=my_sources, sub=meta.sources))
+                raise exc.SetupError('Source state superset {super} and subset {sub} are not compatable'.format(
+                    super=my_sources, sub=sub_meta.sources))
 
             sub_target = target_intersection(sub_meta.target)
             if not sub_target:
-                raise SetupError('Targets {super} and {sub} are not compatable'.format(
+                raise exc.SetupError('Targets {super} and {sub} are not compatable'.format(
                     super=my_target, sub=sub_meta.target
                 ))
             sub_conditions = my_conditions + sub_meta.conditions
             sub_args = (handler_self, ) + my_args + sub_meta.extra_call_args
 
-            sub_meta = FSMMeta(sub_meta.payload, sub_sources, sub_target, sub_conditions, sub_args, sub_meta.bound_cls)
+            sub_meta = meta.FSMMeta(
+                sub_meta.payload, sub_sources, sub_target, sub_conditions, sub_args, sub_meta.bound_cls)
             out.append(sub_meta.get_bound(instance))
 
         return out
@@ -193,89 +171,3 @@ class BoundFSMClass(BoundFSMObject):
         bound_object = internal_handler()
         super(BoundFSMClass, self).__init__(meta, instance, bound_object)
 
-class FSMMeta(object):
-
-    payload = transitions = conditions = sources = bound_cls = None
-    extra_call_args = ()
-
-    def __init__(self, payload, source, target, conditions, extra_args, bound_cls):
-        self.bound_cls = bound_cls
-        self.payload = payload
-        self.conditions = tuple(conditions)
-        self.target = target
-        self.extra_call_args = tuple(extra_args)
-
-        if is_valid_fsm_state(source):
-            all_sources = (source, )
-        elif isinstance(source, collections.Iterable):
-            all_sources = tuple(source)
-        else:
-            raise NotImplementedError(source)
-
-        self.sources = frozenset(all_sources)
-
-    def get_bound(self, instance):
-        return self.bound_cls(self, instance, self.payload)
-
-    def __repr__(self):
-        return "<{} sources={!r} target={!r} conditions={!r} extra call args={!r} payload={!r}>".format(
-            self.__class__.__name__, self.sources, self.target,
-            self.conditions, self.extra_call_args, self.payload,
-        )
-
-def _get_bound_meta(bound_method):
-    try:
-        meta = bound_method._sa_fsm
-    except AttributeError:
-        raise NotImplementedError('This is not transition handler')
-
-    return meta.get_bound(bound_method.im_self)
-
-def transition(source='*', target=None, conditions=()):
-
-    def inner_transition(func):
-
-        @wraps(func, updated=())
-        def _change_fsm_state(instance, *args, **kwargs):
-            bound_meta = _change_fsm_state._sa_fsm.get_bound(instance)
-            if not bound_meta.transition_possible():
-                raise InvalidSourceStateError('Cant switch from {} using method {}'.format(
-                    bound_meta.current_state, func.__name__
-                ))
-            if not bound_meta.conditions_met(args, kwargs):
-                raise PreconditionError("Preconditions are not satisfied.")
-            return bound_meta.to_next_state(args, kwargs)
-
-        def _query_fsm_state(cls):
-            column = _get_fsm_column(cls)
-            target = _change_fsm_state._sa_fsm.target
-            assert target, "Target must be defined at this level."
-            return column == target
-
-        _change_fsm_state.__name__ = "fsm::{}".format(func.__name__)
-
-        if py_inspect.isfunction(func):
-            meta = FSMMeta(func, source, target, conditions, (), BoundFSMFunction)
-        elif py_inspect.isclass(func):
-            # Assume a class with multiple handles for various source states
-            meta = FSMMeta(func, source, target, conditions, (), BoundFSMClass)
-        else:
-            raise NotImplementedError("Do not know how to {!r}".format(func))
-
-        _change_fsm_state._sa_fsm = meta
-
-        return hybrid_method(_change_fsm_state, _query_fsm_state)
-
-    return inner_transition
-
-
-def can_proceed(bound_method, *args, **kwargs):
-    bound_meta = _get_bound_meta(bound_method)
-    return bound_meta.transition_possible() and bound_meta.conditions_met(args, kwargs)
-
-def is_current(bound_method):
-    bound_meta = _get_bound_meta(bound_method)
-    return bound_meta.target_state == bound_meta.current_state
-
-class FSMField(SAtypes.String):
-    pass

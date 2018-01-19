@@ -8,3 +8,7 @@ distribute-*.tar.gz
 nosetests.xml
 coverage.xml
 pylint.out
+*.sublime-workspace
+*,cover
+*.egg-info
+build/
