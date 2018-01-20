@@ -63,5 +63,5 @@ bumpversion --message 'New release on {utcnow}: {new_version}' "${BUMPED_VERSION
 git push origin production --tags
 
 git checkout master
-git merge -X theirs production # Update version string(s)
+git merge -X theirs production -m "Updating version number(s)" # Update version string(s)
 git push
