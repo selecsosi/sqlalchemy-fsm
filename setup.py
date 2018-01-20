@@ -1,17 +1,35 @@
 #!/usr/bin/env python
-
+import os
+from codecs import open
 from setuptools import setup
+
+THIS_DIR = os.path.dirname(os.path.abspath(__file__))
+
+with open(os.path.join(THIS_DIR, 'README.md'), encoding='utf-8') as fobj:
+    README_md = fobj.read()
 
 setup(
     name='sqlalchemy_fsm',
     packages=['sqlalchemy_fsm'],
     py_modules=['sqlalchemy_fsm'],
     description='Finite state machine field for sqlalchemy',
+    long_description=README_md,
     author='Peter & Ilja',
     author_email='ilja@wise.fish',
-    version='1.1.1',
-    url='https://github.com/dagoof/sqlalchemy-fsm',
-    install_requires=['SQLAlchemy>=1.1.1'],
+    license='MIT',
+    classifiers=[
+        'Development Status :: 5 - Production/Stable',
+        'Intended Audience :: Developers',
+        'License :: OSI Approved :: MIT License',
+        'Operating System :: OS Independent',
+        'Programming Language :: Python :: 2.7',
+        'Programming Language :: Python :: 3',
+        'Topic :: Database',
+    ],
+    keywords='sqlalchemy finite state machine fsm',
+    version='1.1.2',
+    url='https://github.com/VRGhost/sqlalchemy-fsm',
+    install_requires=['SQLAlchemy>=1.1.2'],
     setup_requires=['pytest-runner'],
     tests_require=['pytest']
 )
