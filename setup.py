@@ -38,10 +38,10 @@ setup(
         'Topic :: Database',
     ],
     keywords='sqlalchemy finite state machine fsm',
-    version='1.1.4',
+    version='1.1.5',
     url='https://github.com/VRGhost/sqlalchemy-fsm',
     install_requires=[
-        'SQLAlchemy>=1.1.4',
+        'SQLAlchemy>=1.1.5',
         'six>=1.0.0',
     ],
     setup_requires=['pytest-runner'],
