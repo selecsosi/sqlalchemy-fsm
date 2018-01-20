@@ -82,7 +82,7 @@ class BoundFSMFunction(object):
         self.dispatch.before_state_change(
             source=old_state, target=new_state
         )
-        
+
         self.internal_handler(*args, **kwargs)
         setattr(self.instance, self.state_field.name, new_state)
         self.dispatch.after_state_change(
