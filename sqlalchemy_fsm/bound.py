@@ -8,7 +8,7 @@ import inspect as py_inspect
 from functools import partial
 
 
-from . import exc, util, meta
+from . import exc, util, meta, events
 
 
 class BoundFSMFunction(object):
@@ -20,7 +20,8 @@ class BoundFSMFunction(object):
         self.instance = instance
         self.internal_handler = internal_handler
         # Get the state field
-        self.state_field = util.get_fsm_column(type(self.instance))
+        self.state_field = util.get_fsm_column(type(instance))
+        self.dispatch = events.BoundFSMDispatcher(instance)
 
     @property
     def target_state(self):
@@ -73,9 +74,20 @@ class BoundFSMFunction(object):
         return out
 
     def to_next_state(self, args, kwargs):
+        old_state = self.current_state
+        new_state = self.target_state
+
         args = self.meta.extra_call_args + (self.instance, ) + tuple(args)
+
+        self.dispatch.before_state_change(
+            source=old_state, target=new_state
+        )
+
         self.internal_handler(*args, **kwargs)
-        setattr(self.instance, self.state_field.name, self.target_state)
+        setattr(self.instance, self.state_field.name, new_state)
+        self.dispatch.after_state_change(
+            source=old_state, target=new_state
+        )
 
     def __repr__(self):
         return "<{} meta={!r} instance={!r}>".format(

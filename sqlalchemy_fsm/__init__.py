@@ -1,5 +1,6 @@
 from . import (
     exc,
+    events,
 )
 
 from .sqltypes import FSMField
@@ -11,4 +12,4 @@ from .func import (
     is_current,
 )
 
-__version__ = '1.0.0'
+__version__ = '1.1.0'

@@ -141,11 +141,37 @@ You can also use FSM handlers to query the database. E.g.
 
 will return all "Blog" objects whose current state matches "publish"'es target state.
 
+Events
+------
+
+Sqlalchemy-fsm integrates with sqlalchemy's event system.
+The library exposes two events `before_state_change` and `after_state_change` that are fired up
+at the expected points of state's lifecycle.
+
+You can subscribe event listeners via standard SQLAlchemy interface of
+`listens_for` or `listen`.
+
+    from sqlalchemy.event import listens_for
+
+    @listens_for(Blog, 'before_state_change')
+    def on_state_change(instance, source, target):
+        ...
+
+Or
+
+    from sqlalchemy import event
+
+    def on_state_change(instance, source, target):
+        ...
+
+    event.listen(Blog, 'after_state_change', on_state_change)
+
+
+It is possible to de-register an event listener call with `sqlalchemy.event.remove()` method.
+
 How does sqlalchemy-fsm diverge from django-fsm?
 ------------------------------------------------
 
 * Can't commit data from within transition-decorated functions
-
-* No pre/post signals
 
 * Does support arguments to conditions functions

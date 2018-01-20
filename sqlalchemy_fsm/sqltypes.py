@@ -1,7 +1,7 @@
 """ FSM SQL column type(s) """
 
-from sqlalchemy import types as SAtypes
+from sqlalchemy import types, events
 
 
-class FSMField(SAtypes.String):
+class FSMField(types.String):
     pass
