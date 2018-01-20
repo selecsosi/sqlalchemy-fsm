@@ -3,17 +3,19 @@ import os
 from codecs import open
 from setuptools import setup
 
+import m2r
+
 THIS_DIR = os.path.dirname(os.path.abspath(__file__))
 
 with open(os.path.join(THIS_DIR, 'README.md'), encoding='utf-8') as fobj:
-    README_md = fobj.read()
+    README = m2r.convert(fobj.read())
 
 setup(
     name='sqlalchemy_fsm',
     packages=['sqlalchemy_fsm'],
     py_modules=['sqlalchemy_fsm'],
     description='Finite state machine field for sqlalchemy',
-    long_description=README_md,
+    long_description=README,
     author='Peter & Ilja',
     author_email='ilja@wise.fish',
     license='MIT',

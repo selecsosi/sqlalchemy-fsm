@@ -4,5 +4,6 @@ pytest-pep8>=1.0.6
 pytest-runner>=3.0
 python-coveralls>=2.9.1
 bump2version>=0.5.7
+m2r>=0.1.12
 
 -r production.txt
