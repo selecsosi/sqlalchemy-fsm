@@ -56,10 +56,8 @@ git merge -X theirs --squash master
 
 # Execute tests (just in case)
 python "${PROJECT_DIR}/setup.py" test
+bumpversion --allow-dirty --message 'New release on {utcnow}: {new_version}' "${BUMPED_VERSION}"
 
-git commit -m "Merging code from 'master'" -m "Squashed commit"
-
-bumpversion --message 'New release on {utcnow}: {new_version}' "${BUMPED_VERSION}"
 git push origin production --tags
 
 git checkout master
