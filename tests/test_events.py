@@ -4,7 +4,7 @@ import sqlalchemy.event
 
 import sqlalchemy_fsm
 
-from conftest import Base
+from tests.conftest import Base
 
 class EventModel(Base):
     __tablename__ = 'event_model'

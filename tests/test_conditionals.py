@@ -5,7 +5,7 @@ import sqlalchemy
 from sqlalchemy_fsm import FSMField, transition, can_proceed, is_current
 from sqlalchemy_fsm.exc import SetupError, PreconditionError, InvalidSourceStateError
 
-from conftest import Base
+from tests.conftest import Base
 
 def condition_func(instance):
     return True

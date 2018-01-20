@@ -5,7 +5,7 @@ import sqlalchemy
 from sqlalchemy_fsm import FSMField, transition, can_proceed, is_current
 from sqlalchemy_fsm.exc import SetupError, PreconditionError, InvalidSourceStateError
 
-from conftest import Base
+from tests.conftest import Base
 
 
 def val_eq_condition(expected_value):
@@ -121,8 +121,9 @@ class TestMultiSourceBlogPost(object):
 
     def test_transition_two_incorrect_arg(self, model):
         # Transition should be rejected because of top-level `val_contains_condition([1,2])` constraint
-        with pytest.raises(PreconditionError):
+        with pytest.raises(PreconditionError) as err:
             model.publish(42)
+        assert 'Preconditions are not satisfied' in str(err)
         assert model.state == 'new'
         assert model.side_effect == 'default'
 
@@ -155,6 +156,7 @@ class TestMultiSourceBlogPost(object):
 
         # Can not switch from deleted to published
         assert not can_proceed(model.publish, 2)
-        with pytest.raises(InvalidSourceStateError):
+        with pytest.raises(InvalidSourceStateError) as err:
             model.publish(2)
+        assert 'Unable to switch' in str(err)
         assert model.state == 'deleted'

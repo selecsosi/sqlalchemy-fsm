@@ -6,7 +6,7 @@ def _get_bound_meta(bound_method):
         meta = bound_method._sa_fsm
     except AttributeError:
         raise NotImplementedError('This is not transition handler')
-    return meta.get_bound(bound_method.im_self)
+    return meta.get_bound(bound_method.__self__)
 
 
 def can_proceed(bound_method, *args, **kwargs):

@@ -27,7 +27,7 @@ def transition(source='*', target=None, conditions=()):
             bound_meta = _change_fsm_state._sa_fsm.get_bound(instance)
             if not bound_meta.transition_possible():
                 raise exc.InvalidSourceStateError(
-                    'Cant switch from {} using method {}'.format(
+                    'Unable to switch from {} using method {}'.format(
                         bound_meta.current_state, func.__name__
                     )
                 )

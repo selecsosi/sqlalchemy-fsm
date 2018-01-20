@@ -4,7 +4,7 @@ import sqlalchemy
 from sqlalchemy_fsm import FSMField, transition, can_proceed, is_current
 from sqlalchemy_fsm.exc import SetupError, PreconditionError, InvalidSourceStateError
 
-from conftest import Base
+from tests.conftest import Base
 
 class BlogPost(Base):
     __tablename__ = 'blogpost'
@@ -59,12 +59,14 @@ class TestFSMField(object):
 
     def test_unknow_transition_fails(self, model):
         assert not can_proceed(model.hide)
-        with pytest.raises(NotImplementedError):
+        with pytest.raises(NotImplementedError) as err:
             model.hide()
+        assert 'Unable to switch from' in str(err)
 
     def test_state_non_changed_after_fail(self, model):
-        with pytest.raises(Exception):
+        with pytest.raises(Exception) as err:
             model.remove()
+        assert 'No rights to delete' in str(err)
         assert can_proceed(model.remove)
         assert model.state == 'new'
 
@@ -134,8 +136,9 @@ class InvalidModel(Base):
 class TestInvalidModel(object):
     def test_two_fsmfields_in_one_model_not_allowed(self):
         model = InvalidModel()
-        with pytest.raises(SetupError):
+        with pytest.raises(SetupError) as err:
             model.validate()
+        assert 'More than one FSMField found' in str(err)
 
 
 class Document(Base):
