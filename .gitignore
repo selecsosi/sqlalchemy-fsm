@@ -12,3 +12,6 @@ pylint.out
 *,cover
 *.egg-info
 build/
+dist/
+*.egg-info
+.eggs
