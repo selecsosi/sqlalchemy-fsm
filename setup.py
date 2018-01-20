@@ -11,7 +11,7 @@ setup(
     description='Finite state machine field for sqlalchemy',
     author='Peter & Ilja',
     author_email='ilja@wise.fish',
-    version='0.0.7',
+    version='0.0.8',
     url='https://github.com/dagoof/sqlalchemy-fsm',
     install_requires=['SQLAlchemy>=1.0.0'],
     setup_requires=['pytest-runner'],
