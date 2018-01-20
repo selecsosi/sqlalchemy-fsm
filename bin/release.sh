@@ -33,7 +33,7 @@ echo "  with an appropriate tag."
 echo ""
 echo "Pass a name of version number to be incremented ('major', 'minor' or 'patch')"
 
-PROJECT_DIR="$(dirname '${BASH_SOURCE[0]}')/.."
+PROJECT_DIR="$(dirname "${BASH_SOURCE[0]}")/.."
 BUMPED_VERSION="$1"
 
 if [ -x "${BUMPED_VERSION}" ]; then
