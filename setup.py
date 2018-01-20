@@ -3,19 +3,28 @@ import os
 from codecs import open
 from setuptools import setup
 
-import m2r
-
 THIS_DIR = os.path.dirname(os.path.abspath(__file__))
 
-with open(os.path.join(THIS_DIR, 'README.md'), encoding='utf-8') as fobj:
-    README = m2r.convert(fobj.read())
+def get_readme():
+    with open(os.path.join(THIS_DIR, 'README.md'), encoding='utf-8') as fobj:
+        out = fobj.read()
+
+    try:
+        import m2r
+    except ImportError:
+        # must be running on fellow dev computer - no need to do fancy markdown conversion
+        return out
+    else:
+        # Probably an sqlalchemy-fsm dev environment. Might be publishing to pypi.
+        #   Better to perform the conversion
+        return m2r.convert(out)
 
 setup(
     name='sqlalchemy_fsm',
     packages=['sqlalchemy_fsm'],
     py_modules=['sqlalchemy_fsm'],
     description='Finite state machine field for sqlalchemy',
-    long_description=README,
+    long_description=get_readme(),
     author='Peter & Ilja',
     author_email='ilja@wise.fish',
     license='MIT',
@@ -29,9 +38,9 @@ setup(
         'Topic :: Database',
     ],
     keywords='sqlalchemy finite state machine fsm',
-    version='1.1.3',
+    version='1.1.4',
     url='https://github.com/VRGhost/sqlalchemy-fsm',
-    install_requires=['SQLAlchemy>=1.1.3'],
+    install_requires=['SQLAlchemy>=1.1.4'],
     setup_requires=['pytest-runner'],
     tests_require=['pytest']
 )
