@@ -59,7 +59,7 @@ python "${PROJECT_DIR}/setup.py" test
 
 git commit -m "Merging code from 'master'" -m "Squashed commit"
 
-bumpversion --message 'New release on {utcnow}: {new_version}'
+bumpversion --message 'New release on {utcnow}: {new_version}' "${BUMPED_VERSION}"
 git push origin production --tags
 
 git checkout master
