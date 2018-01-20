@@ -36,7 +36,7 @@ echo "Pass a name of version number to be incremented ('major', 'minor' or 'patc
 PROJECT_DIR="$(dirname "${BASH_SOURCE[0]}")/.."
 BUMPED_VERSION="$1"
 
-if [ -x "${BUMPED_VERSION}" ]; then
+if [ -z "${BUMPED_VERSION}" ]; then
     echo >&2 "You must specify what version number to increment"
     exit 1
 fi
