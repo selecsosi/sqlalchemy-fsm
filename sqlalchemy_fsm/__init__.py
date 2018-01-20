@@ -1,5 +1,6 @@
 from . import (
     exc,
+    events,
 )
 
 from .sqltypes import FSMField
