@@ -63,23 +63,29 @@ def test_transition_raises_on_unknown():
     assert 'Do not know how to' in str(err)
 
 def test_transition_raises_on_invalid_state():
-    with pytest.raises(NotImplementedError):
+    with pytest.raises(NotImplementedError) as err:
 
         @transition(source=42, target='blah')
         def func():
             pass
 
-    with pytest.raises(NotImplementedError):
+    assert '42' in str(err)
+
+    with pytest.raises(NotImplementedError) as err:
 
         @transition(source='*', target=42)
         def func():
             pass
 
-    with pytest.raises(NotImplementedError):
+    assert '42' in str(err)
+
+    with pytest.raises(NotImplementedError) as err:
 
         @transition(source=['str', 42], target='blah')
         def func():
             pass
+
+    assert '42' in str(err)
 
 def one_arg_condition():
     def one_arg_condition(instance, arg1):
@@ -148,9 +154,10 @@ class TestMisconfiguredTransitions(object):
         return MisconfiguredTransitions()
 
     def test_misconfigured_transitions(self, model):
-        with pytest.raises(exc.SetupError):
+        with pytest.raises(exc.SetupError) as err:
             with pytest.warns(UserWarning):
                 model.change_state(42)
+        assert 'Mismatch beteen args accepted' in str(err)
 
     def test_multi_transition_handlers(self, model):
         with pytest.raises(exc.SetupError) as err:
@@ -158,12 +165,14 @@ class TestMisconfiguredTransitions(object):
         assert "Can transition with multiple handlers" in str(err)
 
     def test_incompatible_targets(self, model):
-        with pytest.raises(exc.SetupError):
+        with pytest.raises(exc.SetupError) as err:
             model.incompatible_targets()
+        assert 'are not compatable' in str(err)
 
     def test_incompatable_sources(self, model):
-        with pytest.raises(exc.SetupError):
+        with pytest.raises(exc.SetupError) as err:
             model.incompatible_sources()
+        assert 'are not compatable' in str(err)
 
     def test_no_conflict_due_to_precondition_arg_count(self, model):
         assert can_proceed(model.no_conflict_due_to_precondition_arg_count)
