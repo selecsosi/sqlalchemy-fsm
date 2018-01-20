@@ -4,7 +4,7 @@ import sqlalchemy
 from sqlalchemy_fsm import FSMField, transition, exc, can_proceed, is_current
 
 
-from conftest import Base
+from tests.conftest import Base
 
 class NotFsm(Base):
     __tablename__ = 'NotFsm'

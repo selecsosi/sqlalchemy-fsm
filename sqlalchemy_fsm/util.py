@@ -1,4 +1,5 @@
 """Utility functions and consts."""
+from six import string_types
 
 from sqlalchemy import inspect
 
@@ -7,7 +8,7 @@ from .sqltypes import FSMField
 
 
 def is_valid_fsm_state(value):
-    return isinstance(value, basestring) and value
+    return isinstance(value, string_types) and value
 
 
 def get_fsm_column(table_class):

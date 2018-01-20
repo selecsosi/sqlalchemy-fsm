@@ -169,7 +169,7 @@ class BoundFSMObject(BoundFSMFunction):
         out = []
 
         for sub_handler in self.sub_handlers:
-            handler_self = sub_handler.im_self
+            handler_self = sub_handler.__self__
             sub_meta = sub_handler._sa_fsm
 
             sub_sources = source_intersection(sub_meta.sources)
