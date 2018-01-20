@@ -1,4 +1,4 @@
-#!/bin/bash -ex
+#!/bin/bash -e
 
 function require_clean_work_tree () {
     # Update the index
@@ -52,7 +52,7 @@ fi
 require_clean_work_tree 
 
 git checkout production
-git merge master --squash
+git merge -X theirs --squash master
 
 # Execute tests (just in case)
 python "${PROJECT_DIR}/setup.py" test
@@ -63,5 +63,5 @@ bumpversion --message 'New release on {utcnow}: {new_version}' "${BUMPED_VERSION
 git push origin production --tags
 
 git checkout master
-git merge production # Update version string(s)
+git merge -X theirs production # Update version string(s)
 git push
