@@ -36,6 +36,9 @@ Use the `transition` decorator to annotate model methods
 `source` parameter accepts a list of states, or an individual state.
 You can use `*` for source, to allow switching to `target` from any state.
 
+You can also use `None` as source state for (e.g. in case when the state column in nullable).
+However, it is _not possible_ to create transition with `None` as target state due to religious reasons.
+
 Transition can be also used on a class object to create a group of handlers
 for same target state.
 

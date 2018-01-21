@@ -160,3 +160,53 @@ class TestDocument(object):
         model = Document()
         model.publish()
         assert model.status == 'published'
+
+
+class NullSource(Base):
+    __tablename__ = 'null_source'
+
+    id = sqlalchemy.Column(sqlalchemy.Integer, primary_key = True)
+    status = sqlalchemy.Column(FSMField, nullable=True)
+
+    @transition(source=None, target='published')
+    def pubFromNone(self):
+        pass
+
+    @transition(source=None, target='new')
+    def newFromNone(self):
+        pass
+
+    @transition(source=['new', None], target='published')
+    def pubFromEither(self):
+        pass
+
+    @transition(source='*', target='end')
+    def endFromAll(self):
+        pass
+
+class TestNullSource(object):
+
+    @pytest.fixture
+    def model(self):
+        return NullSource()
+
+    def test_null_to_end(self, model):
+        assert model.status is None
+        model.endFromAll()
+        assert model.status == 'end'
+
+    def test_null_pub_end(self, model):
+        assert model.status is None
+        model.pubFromNone()
+        assert model.status == 'published'
+        model.endFromAll()
+        assert model.status == 'end'
+
+    def test_null_new_pub_end(self, model):
+        assert model.status is None
+        model.newFromNone()
+        assert model.status == 'new'
+        model.pubFromEither()
+        assert model.status == 'published'
+        model.endFromAll()
+        assert model.status == 'end'
