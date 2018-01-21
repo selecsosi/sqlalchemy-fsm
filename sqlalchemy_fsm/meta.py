@@ -1,7 +1,8 @@
 """FSM meta object."""
 
 import collections
-from .util import is_valid_fsm_state
+
+from . import util 
 
 
 class FSMMeta(object):
@@ -19,18 +20,21 @@ class FSMMeta(object):
         self.extra_call_args = tuple(extra_args)
 
         if target is not None:
-            if not is_valid_fsm_state(target):
+            if not util.is_valid_fsm_state(target):
                 raise NotImplementedError(target)
             self.target = target
         else:
             self.target = None
 
-        if is_valid_fsm_state(source):
+        if util.is_valid_source_state(source):
             all_sources = (source, )
         elif isinstance(source, collections.Iterable):
             all_sources = tuple(source)
 
-            if not all(is_valid_fsm_state(el) for el in all_sources):
+            if not all(
+                util.is_valid_source_state(el)
+                for el in all_sources
+            ):
                 raise NotImplementedError(all_sources)
         else:
             raise NotImplementedError(source)
