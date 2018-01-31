@@ -37,10 +37,10 @@ Use the `transition` decorator to annotate model methods
 You can use `*` for source, to allow switching to `target` from any state.
 
 `@transition`- annotated methods have the following API:
-    1. `<SqlAlchemy table class>.method()` - returns an SqlAlchemy filter condition that can be used for querying the database (e.g. `session.query(BlogPost).filter(BlogPost.published())`)
-    1. `<SqlAlchemy record>.method()` - returns boolean value that tells if this particular record is in the target state for that method() (e.g. `if not blog.published():`)
-    1. `<SqlAlchemy record>.method.set(*args, **kwargs)` - changes the state of the record object to the transitions' target state (or raises an exception if it is not able to do so)
-    1. `<SqlAlchemy record>.method.can_proceed(*args, **kwargs)` - returns `True` if calling `.method.set(*args, **kwargs)` (with same `*args, **kwargs`) should succeed.
+1. `<SqlAlchemy table class>.method()` - returns an SqlAlchemy filter condition that can be used for querying the database (e.g. `session.query(BlogPost).filter(BlogPost.published())`)
+1. `<SqlAlchemy record>.method()` - returns boolean value that tells if this particular record is in the target state for that method() (e.g. `if not blog.published():`)
+1. `<SqlAlchemy record>.method.set(*args, **kwargs)` - changes the state of the record object to the transitions' target state (or raises an exception if it is not able to do so)
+1. `<SqlAlchemy record>.method.can_proceed(*args, **kwargs)` - returns `True` if calling `.method.set(*args, **kwargs)` (with same `*args, **kwargs`) should succeed.
 
 You can also use `None` as source state for (e.g. in case when the state column in nullable).
 However, it is _not possible_ to create transition with `None` as target state due to religious reasons.
