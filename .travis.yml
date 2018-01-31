@@ -10,7 +10,7 @@ install:
   - |
     if [ "${USE_MIN_PACKAGE_VERSIONS}" == "yes" ];
     then
-      pip install "SQLAlchemy==1.1.5" "six==1.0.0";
+      pip install "SQLAlchemy==1.0.0" "six==1.10.0";
     fi
   - pip freeze # Print versions of all installed packages for logging purposes
 script:
