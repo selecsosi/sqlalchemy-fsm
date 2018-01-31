@@ -7,15 +7,14 @@ from . import util
 
 class FSMMeta(object):
 
-    payload = transitions = conditions = sources = bound_cls = None
+    transitions = conditions = sources = bound_cls = None
     extra_call_args = ()
 
     def __init__(
-        self, payload, source, target,
+        self, source, target,
         conditions, extra_args, bound_cls
     ):
         self.bound_cls = bound_cls
-        self.payload = payload
         self.conditions = tuple(conditions)
         self.extra_call_args = tuple(extra_args)
 
@@ -41,12 +40,12 @@ class FSMMeta(object):
 
         self.sources = frozenset(all_sources)
 
-    def get_bound(self, instance):
-        return self.bound_cls(self, instance, self.payload)
+    def get_bound(self, sqlalchemy_handle, set_func):
+        return self.bound_cls(self, sqlalchemy_handle, set_func)
 
     def __repr__(self):
         return "<{} sources={!r} target={!r} conditions={!r} " \
-        "extra call args={!r} payload={!r}>".format(
+        "extra call args={!r}>".format(
             self.__class__.__name__, self.sources, self.target,
-            self.conditions, self.extra_call_args, self.payload,
+            self.conditions, self.extra_call_args,
         )

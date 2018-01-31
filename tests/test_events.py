@@ -53,14 +53,14 @@ class TestEventListener(object):
                 handle = model.stateA
             else:
                 handle = model.stateB
-            handle()
+            handle.set()
             assert listener_result == expected_result
 
 
         # Remove the listener & check that it had an effect
         sqlalchemy.event.remove(EventModel, event_name, on_update)
         # Call the state handle & ensure that listener had not been called.
-        model.stateA()
+        model.stateA.set()
         assert listener_result == expected_result
 
     def test_standard_sqlalchemy_events_still_work(self, model, session):
@@ -78,11 +78,11 @@ class TestEventListener(object):
         assert not state_log
         assert not insert_log
 
-        model.stateA()
+        model.stateA.set()
         assert len(state_log) == 1
         assert len(insert_log) == 0
 
-        model.stateB()
+        model.stateB.set()
         assert len(state_log) == 2
         assert len(insert_log) == 0
 
@@ -92,7 +92,7 @@ class TestEventListener(object):
         assert len(state_log) == 2
         assert len(insert_log) == 1
 
-        model.stateB()
+        model.stateB.set()
         assert len(state_log) == 3
         assert len(insert_log) == 1
 
@@ -154,9 +154,9 @@ class TestTransitionClassEvents(object):
                 handle = model.stateA
             else:
                 handle = model.stateB
-            handle()
+            handle.set()
             assert listener_result == expected_result
-            model.stateClass()
+            model.stateClass.set()
 
             if handle_name == 'state_a':
                 expected_side = 'from_a'
@@ -172,7 +172,7 @@ class TestTransitionClassEvents(object):
         # Remove the listener & check that it had an effect
         sqlalchemy.event.remove(TransitionClassEventModel, event_name, on_update)
         # Call the state handle & ensure that listener had not been called.
-        model.stateA()
+        model.stateA.set()
         assert listener_result == expected_result
 
 class TestEventsLeakage(object):
@@ -208,22 +208,22 @@ class TestEventsLeakage(object):
         assert len(tr_cls_result) == 0
         assert len(joint_result) == 0
 
-        event_model.stateA()
+        event_model.stateA.set()
         assert len(event_result) == 1
         assert len(tr_cls_result) == 0
         assert len(joint_result) == 1
 
-        event_model.stateB()
+        event_model.stateB.set()
         assert len(event_result) == 2
         assert len(tr_cls_result) == 0
         assert len(joint_result) == 2
 
-        tr_cls_model.stateA()
+        tr_cls_model.stateA.set()
         assert len(event_result) == 2
         assert len(tr_cls_result) == 1
         assert len(joint_result) == 3
 
-        tr_cls_model.stateA()
+        tr_cls_model.stateA.set()
         assert len(event_result) == 2
         assert len(tr_cls_result) == 2
         assert len(joint_result) == 4

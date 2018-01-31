@@ -1,7 +1,7 @@
 import pytest
 import sqlalchemy
 
-from sqlalchemy_fsm import FSMField, transition, exc, can_proceed, is_current
+from sqlalchemy_fsm import FSMField, transition, exc
 
 
 from tests.conftest import Base
@@ -24,13 +24,9 @@ def test_not_fsm():
     assert 'No FSMField found in model' in str(err)
 
 def test_not_transition():
-    with pytest.raises(NotImplementedError) as err:
-        can_proceed(NotFsm.not_transition)
-    assert 'This is not transition handler' in str(err)
+    with pytest.raises(AttributeError):
+        NotFsm.not_transition.can_proceed()
 
-    with pytest.raises(NotImplementedError) as err:
-        is_current(NotFsm.not_transition)
-    assert 'This is not transition handler' in str(err)
 
 class TooMuchFsm(Base):
     __tablename__ = 'TooMuchFsm'
@@ -156,23 +152,23 @@ class TestMisconfiguredTransitions(object):
     def test_misconfigured_transitions(self, model):
         with pytest.raises(exc.SetupError) as err:
             with pytest.warns(UserWarning):
-                model.change_state(42)
+                model.change_state.set(42)
         assert 'Mismatch beteen args accepted' in str(err)
 
     def test_multi_transition_handlers(self, model):
         with pytest.raises(exc.SetupError) as err:
-            model.multi_handler_transition()
+            model.multi_handler_transition.set()
         assert "Can transition with multiple handlers" in str(err)
 
     def test_incompatible_targets(self, model):
         with pytest.raises(exc.SetupError) as err:
-            model.incompatible_targets()
+            model.incompatible_targets.set()
         assert 'are not compatable' in str(err)
 
     def test_incompatable_sources(self, model):
         with pytest.raises(exc.SetupError) as err:
-            model.incompatible_sources()
+            model.incompatible_sources.set()
         assert 'are not compatable' in str(err)
 
     def test_no_conflict_due_to_precondition_arg_count(self, model):
-        assert can_proceed(model.no_conflict_due_to_precondition_arg_count)
+        assert model.no_conflict_due_to_precondition_arg_count.can_proceed()
