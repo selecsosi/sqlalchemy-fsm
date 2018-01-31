@@ -4,6 +4,7 @@ from sqlalchemy.orm.instrumentation import register_class
 
 import sqlalchemy.orm.events
 
+
 @sqlalchemy.event.dispatcher
 class FSMSchemaEvents(sqlalchemy.orm.events.InstanceEvents):
     """Define event listeners for FSM Schema (table) objects."""
@@ -53,10 +54,9 @@ class BoundFSMDispatcher(object):
 
     def _makeBoundDispatchHandle(self, name):
         handle = getattr(self.manager.dispatch, name)
-        
+
         def _wrapped_handle(*args, **kwargs):
             return handle(self.ref, *args, **kwargs)
         _wrapped_handle.__name__ = name
 
         return _wrapped_handle
-

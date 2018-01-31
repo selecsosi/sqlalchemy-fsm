@@ -11,6 +11,7 @@ from sqlalchemy import inspect as sqla_inspect
 from . import exc, util, meta, events
 from .sqltypes import FSMField
 
+
 class SqlAlchemyHandle(object):
 
     table_class = record = fsm_column = dispatch = None
@@ -34,7 +35,10 @@ class SqlAlchemyHandle(object):
             raise exc.SetupError('No FSMField found in model')
         elif len(fsm_fields) > 1:
             raise exc.SetupError(
-                'More than one FSMField found in model ({})'.format(fsm_fields))
+                'More than one FSMField found in model ({})'.format(
+                    fsm_fields
+                )
+            )
         return fsm_fields[0]
 
 
@@ -52,7 +56,10 @@ class BoundFSMBase(object):
 
     @property
     def current_state(self):
-        return getattr(self.sqla_handle.record, self.sqla_handle.fsm_column.name)
+        return getattr(
+            self.sqla_handle.record,
+            self.sqla_handle.fsm_column.name
+        )
 
     def transition_possible(self):
         return (
@@ -60,6 +67,7 @@ class BoundFSMBase(object):
         ) or (
             '*' in self.meta.sources
         )
+
 
 class BoundFSMFunction(BoundFSMBase):
 
@@ -69,9 +77,10 @@ class BoundFSMFunction(BoundFSMBase):
         super(BoundFSMFunction, self).__init__(meta, sqla_handle)
         self.set_func = set_func
 
-
     def conditions_met(self, args, kwargs):
-        args = self.meta.extra_call_args + (self.sqla_handle.record, ) + tuple(args)
+        args = self.meta.extra_call_args + (self.sqla_handle.record, )
+        args += tuple(args)
+
         kwargs = dict(kwargs)
 
         out = True
@@ -242,7 +251,10 @@ class BoundFSMClass(BoundFSMObject):
 
     def __init__(self, meta, sqlalchemy_handle, child_cls):
         child_cls_with_bound_sqla = type(
-            '{}::sqlalchemy_handle::{}'.format(child_cls.__name__, id(sqlalchemy_handle)),
+            '{}::sqlalchemy_handle::{}'.format(
+                child_cls.__name__,
+                id(sqlalchemy_handle)
+            ),
             (child_cls, ),
             {
                 '_sa_fsm_sqlalchemy_handle': sqlalchemy_handle,
@@ -250,4 +262,5 @@ class BoundFSMClass(BoundFSMObject):
         )
 
         bound_object = child_cls_with_bound_sqla()
-        super(BoundFSMClass, self).__init__(meta, sqlalchemy_handle, bound_object)
+        super(BoundFSMClass, self).__init__(
+            meta, sqlalchemy_handle, bound_object)
