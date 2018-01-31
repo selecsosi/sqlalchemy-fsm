@@ -78,8 +78,9 @@ class BoundFSMFunction(BoundFSMBase):
         self.set_func = set_func
 
     def conditions_met(self, args, kwargs):
-        args = self.meta.extra_call_args + (self.sqla_handle.record, )
-        args += tuple(args)
+        args = self.meta.extra_call_args + \
+            (self.sqla_handle.record, ) + \
+            tuple(args)
 
         kwargs = dict(kwargs)
 
