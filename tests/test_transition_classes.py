@@ -2,7 +2,7 @@ import unittest
 import sqlalchemy
 import pytest
 
-from sqlalchemy_fsm import FSMField, transition, can_proceed, is_current
+from sqlalchemy_fsm import FSMField, transition
 from sqlalchemy_fsm.exc import SetupError, PreconditionError, InvalidSourceStateError
 
 from tests.conftest import Base
@@ -63,11 +63,11 @@ class TestAltSyntaxBlogPost(object):
     def test_pre_decorated_publish_from_hidden(self, model):
         model.hide.set()
         assert model.state == 'hidden'
-        assert is_current(model.hide)
-        assert not is_current(model.pre_decorated_publish)
+        assert model.hide()
+        assert not model.pre_decorated_publish()
         model.pre_decorated_publish.set()
         assert model.state == 'pre_decorated_publish'
-        assert is_current(model.pre_decorated_publish)
+        assert model.pre_decorated_publish()
         assert model.side_effect == 'SeparatePublishHandler::did_two'
 
     def test_post_decorated_from_hidden(self, model):

@@ -41,7 +41,7 @@ setup(
     version='1.1.7',
     url='https://github.com/VRGhost/sqlalchemy-fsm',
     install_requires=[
-        'SQLAlchemy>=1.1.5',
+        'SQLAlchemy>=1.0.0',
         'six>=1.10.0',
     ],
     setup_requires=['pytest-runner'],

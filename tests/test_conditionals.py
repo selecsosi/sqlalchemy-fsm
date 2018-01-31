@@ -2,7 +2,7 @@ import unittest
 import sqlalchemy
 
 
-from sqlalchemy_fsm import FSMField, transition, can_proceed, is_current
+from sqlalchemy_fsm import FSMField, transition
 from sqlalchemy_fsm.exc import SetupError, PreconditionError, InvalidSourceStateError
 
 from tests.conftest import Base
@@ -43,13 +43,13 @@ class TestConditional(unittest.TestCase):
         self.assertEqual(self.model.state, 'new')
 
     def test_known_transition_should_succeed(self):
-        self.assertTrue(can_proceed(self.model.published))
+        self.assertTrue(self.model.published.can_proceed())
         self.model.published.set()
         self.assertEqual(self.model.state, 'published')
 
     def test_unmet_condition(self):
         self.model.published.set()
         self.assertEqual(self.model.state, 'published')
-        self.assertFalse(can_proceed(self.model.destroyed))
+        self.assertFalse(self.model.destroyed.can_proceed())
         self.assertRaises(PreconditionError, self.model.destroyed.set)
         self.assertEqual(self.model.state, 'published')

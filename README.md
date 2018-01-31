@@ -26,7 +26,7 @@ Add FSMState field to you model
 Use the `transition` decorator to annotate model methods
 
     @transition(source='new', target='published')
-    def publish(self):
+    def published(self):
         """
         This function may contain side-effects, 
         like updating caches, notifying users, etc.
@@ -35,6 +35,12 @@ Use the `transition` decorator to annotate model methods
 
 `source` parameter accepts a list of states, or an individual state.
 You can use `*` for source, to allow switching to `target` from any state.
+
+`@transition`- annotated methods have the following API:
+    1. `<SqlAlchemy table class>.method()` - returns an SqlAlchemy filter condition that can be used for querying the database (e.g. `session.query(BlogPost).filter(BlogPost.published())`)
+    1. `<SqlAlchemy record>.method()` - returns boolean value that tells if this particular record is in the target state for that method() (e.g. `if not blog.published():`)
+    1. `<SqlAlchemy record>.method.set(*args, **kwargs)` - changes the state of the record object to the transitions' target state (or raises an exception if it is not able to do so)
+    1. `<SqlAlchemy record>.method.can_proceed(*args, **kwargs)` - returns `True` if calling `.method.set(*args, **kwargs)` (with same `*args, **kwargs`) should succeed.
 
 You can also use `None` as source state for (e.g. in case when the state column in nullable).
 However, it is _not possible_ to create transition with `None` as target state due to religious reasons.
@@ -56,14 +62,14 @@ for same target state.
 
     class BlogPost(db.Model):
         ...
-        publish = PublishHandler
+        published = PublishHandler
 
-The transition is still to be invoked by calling the model's publish() method.
+The transition is still to be invoked by calling the model's `published.set()` method.
 
 An alternative inline class syntax is supported too:
 
     @transition(target='published')
-    class publish(object):
+    class published(object):
 
         @transition(source='new')
         def do_one(self, instance, value):
@@ -73,34 +79,32 @@ An alternative inline class syntax is supported too:
         def do_two(self, instance, value):
             instance.side_effect = "published from draft"
 
-If calling publish() succeeds without raising an exception, the state field
+If calling `published.set()` succeeds without raising an exception, the state field
 will be changed, but not written to the database.
-
-    from sqlalchemy_fsm import can_proceed
 
     def publish_view(request, post_id):
         post = get_object__or_404(BlogPost, pk=post_id)
-        if not can_proceed(post.publish):
+        if not post.published.can_proceed():
              raise Http404;
 
-        post.publish()
+        post.published.set()
         post.save()
         return redirect('/')
 
 
 If your given function requires arguments to validate, you need to include them
-when calling can_proceed as well as including them when you call the function
-normally. Say publish() required a date for some reason:
+when calling `can_proceed` as well as including them when you call the function
+normally. Say `publish.set()` required a date for some reason:
 
-    if not can_proceed(post.publish, the_date):
+    if not post.published.can_proceed(the_date):
         raise Http404
     else:
         post.publish(the_date)
 
-If your code needs to know the state model is currently in, you can call
-the is_current() function.
+If your code needs to know the state model is currently in, you can just call
+the main function function.
 
-    if is_current(post.delete):
+    if post.deleted():
         raise Http404
 
 If you require some conditions to be met before changing state, use the

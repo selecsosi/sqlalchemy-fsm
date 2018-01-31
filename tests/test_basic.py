@@ -1,7 +1,7 @@
 import pytest
 import sqlalchemy
 
-from sqlalchemy_fsm import FSMField, transition, can_proceed, is_current
+from sqlalchemy_fsm import FSMField, transition
 from sqlalchemy_fsm.exc import SetupError, PreconditionError, InvalidSourceStateError
 
 from tests.conftest import Base
@@ -50,18 +50,18 @@ class TestFSMField(object):
 
     def test_known_transition_should_succeed(self, model):
         assert not model.published() # Model is not publish-ed yet
-        assert can_proceed(model.published)
+        assert model.published.can_proceed()
         model.published.set()
         assert model.state == 'published'
         # model is publish-ed now
         assert model.published()
 
-        assert can_proceed(model.hidden)
+        assert model.hidden.can_proceed()
         model.hidden.set()
         assert model.state == 'hidden'
 
     def test_unknow_transition_fails(self, model):
-        assert not can_proceed(model.hidden)
+        assert not model.hidden.can_proceed()
         with pytest.raises(NotImplementedError) as err:
             model.hidden.set()
         assert 'Unable to switch from' in str(err)
@@ -70,7 +70,6 @@ class TestFSMField(object):
         with pytest.raises(Exception) as err:
             model.removed.set()
         assert 'No rights to delete' in str(err)
-        assert can_proceed(model.removed)
         assert model.removed.can_proceed()
         assert model.state == 'new'
 
@@ -86,7 +85,7 @@ class TestFSMField(object):
         assert model.state == 'stolen'
 
     def test_star_shortcut_succeed(self, model):
-        assert can_proceed(model.moderated)
+        assert model.moderated.can_proceed()
         model.moderated.set()
         assert model.state == 'moderated'
 

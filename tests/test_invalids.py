@@ -1,7 +1,7 @@
 import pytest
 import sqlalchemy
 
-from sqlalchemy_fsm import FSMField, transition, exc, can_proceed, is_current
+from sqlalchemy_fsm import FSMField, transition, exc
 
 
 from tests.conftest import Base
@@ -24,13 +24,9 @@ def test_not_fsm():
     assert 'No FSMField found in model' in str(err)
 
 def test_not_transition():
-    with pytest.raises(NotImplementedError) as err:
-        can_proceed(NotFsm.not_transition)
-    assert 'This is not transition handler' in str(err)
+    with pytest.raises(AttributeError):
+        NotFsm.not_transition.can_proceed()
 
-    with pytest.raises(NotImplementedError) as err:
-        is_current(NotFsm.not_transition)
-    assert 'This is not transition handler' in str(err)
 
 class TooMuchFsm(Base):
     __tablename__ = 'TooMuchFsm'
@@ -146,15 +142,6 @@ class MisconfiguredTransitions(Base):
         def no_arg_condition(self, instance):
             pass
 
-def test_not_bound_handler():
-    """Test that checking is_current on a class property raises an exception.
-    
-    (As class does not have a state field).
-    """
-    with pytest.raises(NotImplementedError) as err:
-        is_current(MisconfiguredTransitions.change_state)
-    assert 'This is not bound transition handler' in str(err)
-
 
 class TestMisconfiguredTransitions(object):
 
@@ -184,4 +171,4 @@ class TestMisconfiguredTransitions(object):
         assert 'are not compatable' in str(err)
 
     def test_no_conflict_due_to_precondition_arg_count(self, model):
-        assert can_proceed(model.no_conflict_due_to_precondition_arg_count)
+        assert model.no_conflict_due_to_precondition_arg_count.can_proceed()
