@@ -25,7 +25,7 @@ setup(
     py_modules=['sqlalchemy_fsm'],
     description='Finite state machine field for sqlalchemy',
     long_description=get_readme(),
-    author='Peter & Ilja',
+    author='Ilja & Peter',
     author_email='ilja@wise.fish',
     license='MIT',
     classifiers=[
@@ -41,8 +41,8 @@ setup(
     version='1.1.7',
     url='https://github.com/VRGhost/sqlalchemy-fsm',
     install_requires=[
-        'SQLAlchemy>=1.1.5',
-        'six>=1.0.0',
+        'SQLAlchemy>=1.0.0',
+        'six>=1.10.0',
     ],
     setup_requires=['pytest-runner'],
     tests_require=['pytest']

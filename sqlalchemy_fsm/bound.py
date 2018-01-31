@@ -5,23 +5,46 @@ Non-meta objects that are bound to a particular table & sqlalchemy instance.
 import warnings
 import inspect as py_inspect
 
-from functools import partial
+from sqlalchemy import inspect as sqla_inspect
 
 
 from . import exc, util, meta, events
+from .sqltypes import FSMField
+
+class SqlAlchemyHandle(object):
+
+    table_class = record = fsm_column = dispatch = None
+
+    def __init__(self, table_class, table_record_instance=None):
+        self.table_class = table_class
+        self.record = table_record_instance
+        self.fsm_column = self.get_fsm_column(table_class)
+
+        if table_record_instance:
+            self.dispatch = events.BoundFSMDispatcher(table_record_instance)
+
+    def get_fsm_column(self, table_class):
+        fsm_fields = [
+            col
+            for col in sqla_inspect(table_class).columns
+            if isinstance(col.type, FSMField)
+        ]
+
+        if len(fsm_fields) == 0:
+            raise exc.SetupError('No FSMField found in model')
+        elif len(fsm_fields) > 1:
+            raise exc.SetupError(
+                'More than one FSMField found in model ({})'.format(fsm_fields))
+        return fsm_fields[0]
 
 
-class BoundFSMFunction(object):
+class BoundFSMBase(object):
 
-    meta = instance = state_field = internal_handler = None
+    meta = sqla_handle = None
 
-    def __init__(self, meta, instance, internal_handler):
+    def __init__(self, meta, sqla_handle):
         self.meta = meta
-        self.instance = instance
-        self.internal_handler = internal_handler
-        # Get the state field
-        self.state_field = util.get_fsm_column(type(instance))
-        self.dispatch = events.BoundFSMDispatcher(instance)
+        self.sqla_handle = sqla_handle
 
     @property
     def target_state(self):
@@ -29,7 +52,7 @@ class BoundFSMFunction(object):
 
     @property
     def current_state(self):
-        return getattr(self.instance, self.state_field.name)
+        return getattr(self.sqla_handle.record, self.sqla_handle.fsm_column.name)
 
     def transition_possible(self):
         return (
@@ -38,8 +61,17 @@ class BoundFSMFunction(object):
             '*' in self.meta.sources
         )
 
+class BoundFSMFunction(BoundFSMBase):
+
+    set_func = None
+
+    def __init__(self, meta, sqla_handle, set_func):
+        super(BoundFSMFunction, self).__init__(meta, sqla_handle)
+        self.set_func = set_func
+
+
     def conditions_met(self, args, kwargs):
-        args = self.meta.extra_call_args + (self.instance, ) + tuple(args)
+        args = self.meta.extra_call_args + (self.sqla_handle.record, ) + tuple(args)
         kwargs = dict(kwargs)
 
         out = True
@@ -58,7 +90,7 @@ class BoundFSMFunction(object):
         if out:
             # Check that the function itself can be called with these args
             try:
-                py_inspect.getcallargs(self.internal_handler, *args, **kwargs)
+                py_inspect.getcallargs(self.set_func, *args, **kwargs)
             except TypeError as err:
                 warnings.warn(
                     "Failure to validate handler call args: {}".format(err))
@@ -68,7 +100,7 @@ class BoundFSMFunction(object):
                     raise exc.SetupError(
                         "Mismatch beteen args accepted by preconditons "
                         "({!r}) & handler ({!r})".format(
-                            self.meta.conditions, self.internal_handler
+                            self.meta.conditions, self.set_func
                         )
                     )
         return out
@@ -77,34 +109,39 @@ class BoundFSMFunction(object):
         old_state = self.current_state
         new_state = self.target_state
 
-        args = self.meta.extra_call_args + (self.instance, ) + tuple(args)
+        sqla_target = self.sqla_handle.record
 
-        self.dispatch.before_state_change(
+        args = self.meta.extra_call_args + (sqla_target, ) + tuple(args)
+
+        self.sqla_handle.dispatch.before_state_change(
             source=old_state, target=new_state
         )
 
-        self.internal_handler(*args, **kwargs)
-        setattr(self.instance, self.state_field.name, new_state)
-        self.dispatch.after_state_change(
+        self.set_func(*args, **kwargs)
+        setattr(
+            sqla_target,
+            self.sqla_handle.fsm_column.name,
+            new_state
+            )
+        self.sqla_handle.dispatch.after_state_change(
             source=old_state, target=new_state
         )
 
     def __repr__(self):
         return "<{} meta={!r} instance={!r}>".format(
-            self.__class__.__name__, self.meta, self.instance)
+            self.__class__.__name__, self.meta, self.sqla_handle)
 
 
-class BoundFSMObject(BoundFSMFunction):
+class BoundFSMObject(BoundFSMBase):
 
-    def __init__(self, *args, **kwargs):
-        super(BoundFSMObject, self).__init__(*args, **kwargs)
+    def __init__(self, meta, sqlalchemy_handle, child_object):
+        super(BoundFSMObject, self).__init__(meta, sqlalchemy_handle)
         # Collect sub-handlers
         sub_handlers = []
-        sub_instance = self.internal_handler
-        for name in dir(sub_instance):
+        for name in dir(child_object):
             try:
-                attr = getattr(sub_instance, name)
-                meta = attr._sa_fsm
+                attr = getattr(child_object, name)
+                meta = attr._sa_fsm_bound_meta
             except AttributeError:
                 # Skip non-fsm methods
                 continue
@@ -143,7 +180,7 @@ class BoundFSMObject(BoundFSMFunction):
         return can_transition_with[0].to_next_state(args, kwargs)
 
     def mk_restricted_bound_sub_metas(self):
-        instance = self.instance
+        sqla_handle = self.sqla_handle
         my_sources = self.meta.sources
         my_target = self.meta.target
         my_conditions = self.meta.conditions
@@ -169,8 +206,9 @@ class BoundFSMObject(BoundFSMFunction):
         out = []
 
         for sub_handler in self.sub_handlers:
-            handler_self = sub_handler.__self__
-            sub_meta = sub_handler._sa_fsm
+            handler_fn = sub_handler._sa_fsm_transition_fn
+            handler_self = sub_handler._sa_fsm_self
+            sub_meta = sub_handler._sa_fsm_meta
 
             sub_sources = source_intersection(sub_meta.sources)
             if not sub_sources:
@@ -192,16 +230,24 @@ class BoundFSMObject(BoundFSMFunction):
             sub_args = (handler_self, ) + my_args + sub_meta.extra_call_args
 
             sub_meta = meta.FSMMeta(
-                sub_meta.payload, sub_sources, sub_target,
+                sub_sources, sub_target,
                 sub_conditions, sub_args, sub_meta.bound_cls
             )
-            out.append(sub_meta.get_bound(instance))
+            out.append(sub_meta.get_bound(sqla_handle, handler_fn))
 
         return out
 
 
 class BoundFSMClass(BoundFSMObject):
 
-    def __init__(self, meta, instance, internal_handler):
-        bound_object = internal_handler()
-        super(BoundFSMClass, self).__init__(meta, instance, bound_object)
+    def __init__(self, meta, sqlalchemy_handle, child_cls):
+        child_cls_with_bound_sqla = type(
+            '{}::sqlalchemy_handle::{}'.format(child_cls.__name__, id(sqlalchemy_handle)),
+            (child_cls, ),
+            {
+                '_sa_fsm_sqlalchemy_handle': sqlalchemy_handle,
+            }
+        )
+
+        bound_object = child_cls_with_bound_sqla()
+        super(BoundFSMClass, self).__init__(meta, sqlalchemy_handle, bound_object)

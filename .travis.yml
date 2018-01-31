@@ -2,8 +2,17 @@ language: python
 python:
   - "2.7"
   - "3.6"
+env:
+  - USE_MIN_PACKAGE_VERSIONS=no
+  - USE_MIN_PACKAGE_VERSIONS=yes
 install:
   - pip install -r requirements/develop.txt
+  - |
+    if [ "${USE_MIN_PACKAGE_VERSIONS}" == "yes" ];
+    then
+      pip install "SQLAlchemy==1.0.0" "six==1.10.0";
+    fi
+  - pip freeze # Print versions of all installed packages for logging purposes
 script:
   - py.test
 after_success:
