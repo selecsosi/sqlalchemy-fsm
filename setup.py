@@ -25,7 +25,7 @@ setup(
     py_modules=['sqlalchemy_fsm'],
     description='Finite state machine field for sqlalchemy',
     long_description=get_readme(),
-    author='Peter & Ilja',
+    author='Ilja & Peter',
     author_email='ilja@wise.fish',
     license='MIT',
     classifiers=[
