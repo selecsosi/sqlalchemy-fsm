@@ -3,11 +3,16 @@ python:
   - "2.7"
   - "3.6"
 env:
-  - SQL_ALCHEMY_VERSION=HEAD
-  - SQL_ALCHEMY_VERSION=1.1.5
+  - USE_MIN_PACKAGE_VERSIONS=no
+  - USE_MIN_PACKAGE_VERSIONS=yes
 install:
   - pip install -r requirements/develop.txt
-  - if [ "${SQL_ALCHEMY_VERSION}" != "HEAD" ]; then pip install "SQLAlchemy==${SQL_ALCHEMY_VERSION}"; fi
+  - |
+    if [ "${USE_MIN_PACKAGE_VERSIONS}" == "yes" ];
+    then
+      pip install "SQLAlchemy==1.1.5" "six==1.0.0";
+    fi
+  - pip freeze # Print versions of all installed packages for logging purposes
 script:
   - py.test
 after_success:
