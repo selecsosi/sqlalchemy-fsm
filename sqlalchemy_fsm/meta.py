@@ -2,7 +2,7 @@
 
 import collections
 
-from . import util 
+from . import util
 
 
 class FSMMeta(object):
@@ -45,7 +45,7 @@ class FSMMeta(object):
 
     def __repr__(self):
         return "<{} sources={!r} target={!r} conditions={!r} " \
-        "extra call args={!r}>".format(
-            self.__class__.__name__, self.sources, self.target,
-            self.conditions, self.extra_call_args,
-        )
+            "extra call args={!r}>".format(
+                self.__class__.__name__, self.sources, self.target,
+                self.conditions, self.extra_call_args,
+            )

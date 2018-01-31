@@ -15,4 +15,3 @@ def is_valid_source_state(value):
         and `None` (as this is default  value for sqlalchemy colums)
     """
     return (value == '*') or (value is None) or is_valid_fsm_state(value)
-
