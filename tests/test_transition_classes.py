@@ -56,29 +56,29 @@ class TestAltSyntaxBlogPost(object):
         return AltSyntaxBlogPost()
 
     def test_pre_decorated_publish(self, model):
-        model.pre_decorated_publish()
+        model.pre_decorated_publish.set()
         assert model.state == 'pre_decorated_publish'
         assert model.side_effect == 'SeparatePublishHandler::did_one'
 
     def test_pre_decorated_publish_from_hidden(self, model):
-        model.hide()
+        model.hide.set()
         assert model.state == 'hidden'
         assert is_current(model.hide)
         assert not is_current(model.pre_decorated_publish)
-        model.pre_decorated_publish()
+        model.pre_decorated_publish.set()
         assert model.state == 'pre_decorated_publish'
         assert is_current(model.pre_decorated_publish)
         assert model.side_effect == 'SeparatePublishHandler::did_two'
 
     def test_post_decorated_from_hidden(self, model):
-        model.post_decorated_publish()
+        model.post_decorated_publish.set()
         assert model.state == 'post_decorated_publish'
         assert model.side_effect == 'SeparatePublishHandler::did_one'
 
     def test_post_decorated_publish_from_hidden(self, model):
-        model.hide()
+        model.hide.set()
         assert model.state == 'hidden'
-        model.post_decorated_publish()
+        model.post_decorated_publish.set()
         assert model.state == 'post_decorated_publish'
         assert model.side_effect == 'SeparatePublishHandler::did_two'
 
@@ -88,9 +88,9 @@ class TestAltSyntaxBlogPost(object):
         pre_decorated_published = records[3:5]
         post_decorated_published = records[-2:]
 
-        [el.hide() for el in hidden_records]
-        [el.pre_decorated_publish() for el in pre_decorated_published]
-        [el.post_decorated_publish() for el in post_decorated_published]
+        [el.hide.set() for el in hidden_records]
+        [el.pre_decorated_publish.set() for el in pre_decorated_published]
+        [el.post_decorated_publish.set() for el in post_decorated_published]
 
         session.add_all(records)
         session.commit()

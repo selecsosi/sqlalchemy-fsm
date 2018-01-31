@@ -16,23 +16,23 @@ class BlogPost(Base):
         super(BlogPost, self).__init__(*args, **kwargs)
 
     @transition(source='new', target='published')
-    def publish(self):
+    def published(self):
         pass
 
     @transition(source='published', target='hidden')
-    def hide(self):
+    def hidden(self):
         pass
 
     @transition(source='new', target='removed')
-    def remove(self):
+    def removed(self):
         raise Exception('No rights to delete %s' % self)
 
     @transition(source=['published','hidden'], target='stolen')
-    def steal(self):
+    def stolen(self):
         pass
 
     @transition(source='*', target='moderated')
-    def moderate(self):
+    def moderated(self):
         pass
 
 class TestFSMField(object):
@@ -45,45 +45,49 @@ class TestFSMField(object):
         assert model.state == 'new'
 
     def test_meta_attached(self, model):
-        assert model.publish._sa_fsm
-        assert 'FSMMeta' in repr(model.publish._sa_fsm)
+        assert model.published._sa_fsm_meta
+        assert 'FSMMeta' in repr(model.published._sa_fsm_meta)
 
     def test_known_transition_should_succeed(self, model):
-        assert can_proceed(model.publish)
-        model.publish()
+        assert not model.published() # Model is not publish-ed yet
+        assert can_proceed(model.published)
+        model.published.set()
         assert model.state == 'published'
+        # model is publish-ed now
+        assert model.published()
 
-        assert can_proceed(model.hide)
-        model.hide()
+        assert can_proceed(model.hidden)
+        model.hidden.set()
         assert model.state == 'hidden'
 
     def test_unknow_transition_fails(self, model):
-        assert not can_proceed(model.hide)
+        assert not can_proceed(model.hidden)
         with pytest.raises(NotImplementedError) as err:
-            model.hide()
+            model.hidden.set()
         assert 'Unable to switch from' in str(err)
 
     def test_state_non_changed_after_fail(self, model):
         with pytest.raises(Exception) as err:
-            model.remove()
+            model.removed.set()
         assert 'No rights to delete' in str(err)
-        assert can_proceed(model.remove)
+        assert can_proceed(model.removed)
+        assert model.removed.can_proceed()
         assert model.state == 'new'
 
     def test_mutiple_source_support_path_1_works(self, model):
-        model.publish()
-        model.steal()
+        model.published.set()
+        model.stolen.set()
         assert model.state == 'stolen'
 
     def test_mutiple_source_support_path_2_works(self, model):
-        model.publish()
-        model.hide()
-        model.steal()
+        model.published.set()
+        model.hidden.set()
+        model.stolen.set()
         assert model.state == 'stolen'
 
     def test_star_shortcut_succeed(self, model):
-        assert can_proceed(model.moderate)
-        model.moderate()
+        assert can_proceed(model.moderated)
+        model.moderated.set()
         assert model.state == 'moderated'
 
 
@@ -92,8 +96,8 @@ class TestFSMField(object):
         model2 = BlogPost()
         model3 = BlogPost()
         model4 = BlogPost()
-        model3.publish()
-        model4.publish()
+        model3.published.set()
+        model4.published.set()
 
         session.add_all([model1, model2, model3, model4])
         session.commit()
@@ -102,7 +106,7 @@ class TestFSMField(object):
 
         # Check that one can query by fsm handler
         query_results = session.query(BlogPost).filter(
-            BlogPost.publish(),
+            BlogPost.published(),
             BlogPost.id.in_(ids),
         ).all()
         assert len(query_results) == 2, query_results
@@ -110,7 +114,7 @@ class TestFSMField(object):
         assert model4 in query_results
 
         negated_query_results = session.query(BlogPost).filter(
-            ~BlogPost.publish(),
+            ~BlogPost.published(),
             BlogPost.id.in_(ids),
         ).all()
         assert len(negated_query_results) == 2, query_results
@@ -130,14 +134,14 @@ class InvalidModel(Base):
         super(InvalidModel, self).__init__(*args, **kwargs)
 
     @transition(source='new', target='no')
-    def validate(self):
+    def validated(self):
         pass
 
 class TestInvalidModel(object):
     def test_two_fsmfields_in_one_model_not_allowed(self):
         model = InvalidModel()
         with pytest.raises(SetupError) as err:
-            model.validate()
+            model.validated()
         assert 'More than one FSMField found' in str(err)
 
 
@@ -151,14 +155,14 @@ class Document(Base):
         super(Document, self).__init__(*args, **kwargs)
 
     @transition(source='new', target='published')
-    def publish(self):
+    def published(self):
         pass
 
 
 class TestDocument(object):
     def test_any_state_field_name_allowed(self):
         model = Document()
-        model.publish()
+        model.published.set()
         assert model.status == 'published'
 
 
@@ -192,21 +196,21 @@ class TestNullSource(object):
 
     def test_null_to_end(self, model):
         assert model.status is None
-        model.endFromAll()
+        model.endFromAll.set()
         assert model.status == 'end'
 
     def test_null_pub_end(self, model):
         assert model.status is None
-        model.pubFromNone()
+        model.pubFromNone.set()
         assert model.status == 'published'
-        model.endFromAll()
+        model.endFromAll.set()
         assert model.status == 'end'
 
     def test_null_new_pub_end(self, model):
         assert model.status is None
-        model.newFromNone()
+        model.newFromNone.set()
         assert model.status == 'new'
-        model.pubFromEither()
+        model.pubFromEither.set()
         assert model.status == 'published'
-        model.endFromAll()
+        model.endFromAll.set()
         assert model.status == 'end'

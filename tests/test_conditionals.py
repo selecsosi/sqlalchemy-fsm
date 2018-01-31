@@ -27,11 +27,11 @@ class BlogPostWithConditions(Base):
         return False
 
     @transition(source='new', target='published', conditions=[condition_func, model_condition])
-    def publish(self):
+    def published(self):
         pass
 
     @transition(source='published', target='destroyed', conditions=[condition_func, unmet_condition])
-    def destroy(self):
+    def destroyed(self):
         pass
 
 
@@ -43,13 +43,13 @@ class TestConditional(unittest.TestCase):
         self.assertEqual(self.model.state, 'new')
 
     def test_known_transition_should_succeed(self):
-        self.assertTrue(can_proceed(self.model.publish))
-        self.model.publish()
+        self.assertTrue(can_proceed(self.model.published))
+        self.model.published.set()
         self.assertEqual(self.model.state, 'published')
 
     def test_unmet_condition(self):
-        self.model.publish()
+        self.model.published.set()
         self.assertEqual(self.model.state, 'published')
-        self.assertFalse(can_proceed(self.model.destroy))
-        self.assertRaises(PreconditionError, self.model.destroy)
+        self.assertFalse(can_proceed(self.model.destroyed))
+        self.assertRaises(PreconditionError, self.model.destroyed.set)
         self.assertEqual(self.model.state, 'published')

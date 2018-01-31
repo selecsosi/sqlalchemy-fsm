@@ -146,6 +146,15 @@ class MisconfiguredTransitions(Base):
         def no_arg_condition(self, instance):
             pass
 
+def test_not_bound_handler():
+    """Test that checking is_current on a class property raises an exception.
+    
+    (As class does not have a state field).
+    """
+    with pytest.raises(NotImplementedError) as err:
+        is_current(MisconfiguredTransitions.change_state)
+    assert 'This is not bound transition handler' in str(err)
+
 
 class TestMisconfiguredTransitions(object):
 
@@ -156,22 +165,22 @@ class TestMisconfiguredTransitions(object):
     def test_misconfigured_transitions(self, model):
         with pytest.raises(exc.SetupError) as err:
             with pytest.warns(UserWarning):
-                model.change_state(42)
+                model.change_state.set(42)
         assert 'Mismatch beteen args accepted' in str(err)
 
     def test_multi_transition_handlers(self, model):
         with pytest.raises(exc.SetupError) as err:
-            model.multi_handler_transition()
+            model.multi_handler_transition.set()
         assert "Can transition with multiple handlers" in str(err)
 
     def test_incompatible_targets(self, model):
         with pytest.raises(exc.SetupError) as err:
-            model.incompatible_targets()
+            model.incompatible_targets.set()
         assert 'are not compatable' in str(err)
 
     def test_incompatable_sources(self, model):
         with pytest.raises(exc.SetupError) as err:
-            model.incompatible_sources()
+            model.incompatible_sources.set()
         assert 'are not compatable' in str(err)
 
     def test_no_conflict_due_to_precondition_arg_count(self, model):

@@ -93,26 +93,26 @@ class TestMultiSourceBlogPost(object):
     def test_transition_one(self, model):
         assert can_proceed(model.publish, 1)
 
-        model.publish(1)
+        model.publish.set(1)
         assert model.state == 'published'
         assert model.side_effect == 'did_one'
 
     def test_transition_two(self, model):
         assert can_proceed(model.publish, 2)
 
-        model.publish(2)
+        model.publish.set(2)
         assert model.state == 'published'
         assert model.side_effect == 'did_two'
 
     def test_three_arg_transition_mk1(self, model):
         assert can_proceed(model.noPreFilterPublish, 1, 2, 3)
-        model.noPreFilterPublish(1, 2, 3)
+        model.noPreFilterPublish.set(1, 2, 3)
         assert model.state == 'published'
         assert model.side_effect == 'did_three_arg_mk1::[1, 2, 3]'
 
     def test_three_arg_transition_mk2(self, model):
         assert can_proceed(model.noPreFilterPublish, 'str', -1, 42)
-        model.noPreFilterPublish('str', -1, 42)
+        model.noPreFilterPublish.set('str', -1, 42)
         assert model.state == 'published'
         assert model.side_effect == "did_three_arg_mk2::['str', -1, 42]"
 
@@ -122,7 +122,7 @@ class TestMultiSourceBlogPost(object):
     def test_transition_two_incorrect_arg(self, model):
         # Transition should be rejected because of top-level `val_contains_condition([1,2])` constraint
         with pytest.raises(PreconditionError) as err:
-            model.publish(42)
+            model.publish.set(42)
         assert 'Preconditions are not satisfied' in str(err)
         assert model.state == 'new'
         assert model.side_effect == 'default'
@@ -132,31 +132,31 @@ class TestMultiSourceBlogPost(object):
         assert not can_proceed(model.publish, 4242)
 
     def test_hide(self, model):
-        model.hide()
+        model.hide.set()
         assert model.state == 'hidden'
         assert model.side_effect == 'did_hide'
 
-        model.publish(2)
+        model.publish.set(2)
         assert model.state == 'published'
         assert model.side_effect == 'did_unhide: 2'
 
     def test_publish_loop(self, model):
-        model.publish(1)
+        model.publish.set(1)
         assert model.state == 'published'
         assert model.side_effect == 'did_one'
 
         for arg in (1, 2, 1, 1, 2):
-            model.publish(arg)
+            model.publish.set(arg)
             assert model.state == 'published'
             assert model.side_effect == 'do_publish_loop: {}'.format(arg)
 
     def test_delete_new(self, model):
-        model.delete()
+        model.delete.set()
         assert model.state == 'deleted'
 
         # Can not switch from deleted to published
         assert not can_proceed(model.publish, 2)
         with pytest.raises(InvalidSourceStateError) as err:
-            model.publish(2)
+            model.publish.set(2)
         assert 'Unable to switch' in str(err)
         assert model.state == 'deleted'
