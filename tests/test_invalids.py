@@ -172,3 +172,15 @@ class TestMisconfiguredTransitions(object):
 
     def test_no_conflict_due_to_precondition_arg_count(self, model):
         assert model.no_conflict_due_to_precondition_arg_count.can_proceed()
+
+
+def test_unexpected_is__type(session):
+    model = MisconfiguredTransitions()
+    session.add(model)
+    session.commit()
+    with pytest.warns(UserWarning) as warn:
+        result = session.query(MisconfiguredTransitions).filter(
+            MisconfiguredTransitions.change_state.is_('hello world')
+        ).all()
+    assert not result
+    assert "Unexpected is_ argument: 'hello world'" in str(warn.list[0].message)

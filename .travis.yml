@@ -14,8 +14,8 @@ install:
     fi
   - pip freeze # Print versions of all installed packages for logging purposes
 script:
-  - py.test
   - py.test --pep8 ./sqlalchemy_fsm/
+  - py.test
 after_success:
   - coveralls
 deploy:

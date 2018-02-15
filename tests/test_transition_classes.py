@@ -82,20 +82,27 @@ class TestAltSyntaxBlogPost(object):
         assert model.state == 'post_decorated_publish'
         assert model.side_effect == 'SeparatePublishHandler::did_two'
 
-    def test_class_query(self, session, model):
+    def mk_records(self, session, count):
         records = [AltSyntaxBlogPost() for idx in range(10)]
-        hidden_records = records[:2]
-        pre_decorated_published = records[3:5]
-        post_decorated_published = records[-2:]
+        session.add_all(records)
+        return records
+
+    @pytest.mark.parametrize('query_method', ['call', 'is_'])
+    def test_class_query(self, session, query_method):
+        hidden_records = self.mk_records(session, 5)
+        pre_decorated_published = self.mk_records(session, 5)
+        post_decorated_published = self.mk_records(session, 5)
 
         [el.hide.set() for el in hidden_records]
         [el.pre_decorated_publish.set() for el in pre_decorated_published]
         [el.post_decorated_publish.set() for el in post_decorated_published]
 
-        session.add_all(records)
         session.commit()
 
-        all_ids = [el.id for el in records]
+        all_ids = [
+            el.id
+            for el in hidden_records + pre_decorated_published + post_decorated_published
+        ]
         for (handler, expected_group) in [
             ('hide', hidden_records),
             ('pre_decorated_publish', pre_decorated_published),
@@ -103,17 +110,31 @@ class TestAltSyntaxBlogPost(object):
         ]:
             expected_ids = set(el.id for el in expected_group)
             attr = getattr(AltSyntaxBlogPost, handler)
+
+            if query_method == 'call':
+                attr_filter = {
+                    True: attr(),
+                    False: ~attr(),
+                }
+            elif query_method == 'is_':
+                attr_filter = {
+                    True: attr.is_(True),
+                    False: attr.is_(False),
+                }
+            else:
+                raise NotImplementedError(query_method)
+
             matching = session.query(AltSyntaxBlogPost).filter(
-                attr(),
+                attr_filter[True],
                 AltSyntaxBlogPost.id.in_(all_ids),
             ).all()
             assert len(matching) == len(expected_group)
             assert set(el.id for el in matching) == expected_ids
 
             not_matching = session.query(AltSyntaxBlogPost).filter(
-                attr() == False,
+                attr_filter[False],
                 AltSyntaxBlogPost.id.in_(all_ids),
             ).all()
-            assert len(not_matching) == (len(records) - len(expected_group))
+            assert len(not_matching) == (len(all_ids) - len(expected_group))
             assert expected_ids.intersection(el.id for el in not_matching) == set(), \
                 expected_ids.intersection(el.id for el in not_matching)

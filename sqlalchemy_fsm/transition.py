@@ -1,4 +1,5 @@
 """ Transition decorator. """
+import warnings
 import inspect as py_inspect
 
 from functools import wraps
@@ -23,6 +24,15 @@ class ClassBoundFsmTransition(object):
         target = self._sa_fsm_meta.target
         assert target, "Target must be defined at this level."
         return column == target
+
+    def is_(self, value):
+        if isinstance(value, bool):
+            out = self().is_(value)
+        else:
+            warnings.warn("Unexpected is_ argument: {!r}".format(value))
+            # Can be used as sqlalchemy filer. Won't match anything
+            out = False
+        return out
 
 
 class InstanceBoundFsmTransition(object):
