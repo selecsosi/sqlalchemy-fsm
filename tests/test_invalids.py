@@ -183,4 +183,4 @@ def test_unexpected_is__type(session):
             MisconfiguredTransitions.change_state.is_('hello world')
         ).all()
     assert not result
-    assert "Unexpected is_ argument: 'hello world'" in warn.list[0].message
+    assert "Unexpected is_ argument: 'hello world'" in str(warn.list[0].message)
