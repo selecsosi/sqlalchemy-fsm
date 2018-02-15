@@ -30,7 +30,8 @@ class ClassBoundFsmTransition(object):
             out = self().is_(value)
         else:
             warnings.warn("Unexpected is_ argument: {!r}".format(value))
-            out = False  # Can be used as sqlalchemy filer. Won't match anything
+            # Can be used as sqlalchemy filer. Won't match anything
+            out = False
         return out
 
 
