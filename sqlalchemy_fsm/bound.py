@@ -268,11 +268,11 @@ class BoundFSMObject(BoundFSMBase):
             sub_conditions = arithmetics.joint_conditions()
             sub_args = (handler_self, ) + arithmetics.joint_args()
 
-            sub_meta = meta.FSMMeta(
+            merged_sub_meta = meta.FSMMeta(
                 sub_sources, sub_target,
                 sub_conditions, sub_args, sub_meta.bound_cls
             )
-            out.append(sub_meta.get_bound(sqla_handle, handler_fn))
+            out.append(merged_sub_meta.get_bound(sqla_handle, handler_fn))
 
         return out
 
