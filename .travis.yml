@@ -5,9 +5,6 @@ python:
 env:
   - USE_MIN_PACKAGE_VERSIONS=no
   - USE_MIN_PACKAGE_VERSIONS=yes
-addons:
-    code_climate:
-      repo_token: 98492b2b5bbaf1cb15691d14f937120784e2bb8ba613005c4cf92251de7d1807
 
 install:
   - pip install -r requirements/develop.txt
@@ -22,7 +19,7 @@ script:
   - py.test -m pep8
   - py.test
 after_success:
-  - codeclimate-test-reporter
+  - codeclimate-test-reporter --token 98492b2b5bbaf1cb15691d14f937120784e2bb8ba613005c4cf92251de7d1807
 
 deploy:
   provider: pypi
