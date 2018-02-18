@@ -77,6 +77,17 @@ class BoundFSMFunction(BoundFSMBase):
         super(BoundFSMFunction, self).__init__(meta, sqla_handle)
         self.set_func = set_func
 
+    def get_call_iface_error(self, fn, args, kwargs):
+        """Returhs 'Type' error describing function's api mismatch (if one exists)
+
+        or None
+        """
+        try:
+            py_inspect.getcallargs(fn, *args, **kwargs)
+        except TypeError as err:
+            return err
+        return None
+
     def conditions_met(self, args, kwargs):
         args = self.meta.extra_call_args + \
             (self.sqla_handle.record, ) + \
@@ -87,21 +98,19 @@ class BoundFSMFunction(BoundFSMBase):
         out = True
         for condition in self.meta.conditions:
             # Check that condition is call-able with args provided
-            try:
-                py_inspect.getcallargs(condition, *args, **kwargs)
-            except TypeError:
+            if self.get_call_iface_error(condition, args, kwargs):
                 out = False
             else:
                 out = condition(*args, **kwargs)
+
             if not out:
                 # Preconditions failed
                 break
 
         if out:
             # Check that the function itself can be called with these args
-            try:
-                py_inspect.getcallargs(self.set_func, *args, **kwargs)
-            except TypeError as err:
+            err = self.get_call_iface_error(self.set_func, args, kwargs)
+            if err:
                 warnings.warn(
                     "Failure to validate handler call args: {}".format(err))
                 # Can not map call args to handler's
@@ -132,7 +141,7 @@ class BoundFSMFunction(BoundFSMBase):
             sqla_target,
             self.sqla_handle.fsm_column.name,
             new_state
-            )
+        )
         self.sqla_handle.dispatch.after_state_change(
             source=old_state, target=new_state
         )
