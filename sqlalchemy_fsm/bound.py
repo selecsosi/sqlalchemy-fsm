@@ -142,6 +142,52 @@ class BoundFSMFunction(BoundFSMBase):
             self.__class__.__name__, self.meta, self.sqla_handle)
 
 
+class TansitionStateArtithmetics(object):
+    """Helper class aiding in merging transition state params."""
+
+    def __init__(self, metaA, metaB):
+        self.metaA = metaA
+        self.metaB = metaB
+
+    def source_intersection(self):
+        """Returns intersected sources meta sources."""
+        sources_a = self.metaA.sources
+        sources_b = self.metaB.sources
+
+        if '*' in sources_a:
+            return sources_b
+        elif '*' in sources_b:
+            return sources_a
+        elif sources_a.issuperset(sources_b):
+            return sources_a.intersection(sources_b)
+        else:
+            return False
+
+    def target_intersection(self):
+        target_a = self.metaA.target
+        target_b = self.metaB.target
+        print target_a, target_b
+
+        if target_a == target_b:
+            # Also covers the case when both are None
+            out = target_a
+        elif None in (target_a, target_b):
+            not_none = [el for el in (target_a, target_b) if el]
+            out = not_none[0]
+        else:
+            # Both are non-equal strings
+            assert target_a and target_b and target_a != target_b
+            out = None
+        return out
+
+    def joint_conditions(self):
+        """Returns union of both conditions."""
+        return self.metaA.conditions + self.metaB.conditions
+
+    def joint_args(self):
+        return self.metaA.extra_call_args + self.metaB.extra_call_args
+
+
 class BoundFSMObject(BoundFSMBase):
 
     def __init__(self, meta, sqlalchemy_handle, child_object):
@@ -191,27 +237,7 @@ class BoundFSMObject(BoundFSMBase):
 
     def mk_restricted_bound_sub_metas(self):
         sqla_handle = self.sqla_handle
-        my_sources = self.meta.sources
-        my_target = self.meta.target
-        my_conditions = self.meta.conditions
         my_args = self.meta.extra_call_args
-
-        def source_intersection(sub_meta_sources):
-            if '*' in my_sources:
-                return sub_meta_sources
-            elif '*' in sub_meta_sources:
-                return my_sources
-            elif my_sources.issuperset(sub_meta_sources):
-                return my_sources.intersection(sub_meta_sources)
-            else:
-                return False
-
-        def target_intersection(sub_meta_target):
-            # Only two cases are supported:
-            #   same target values and sub_meta target being set to `False`
-            if sub_meta_target and (sub_meta_target != my_target):
-                return None
-            return my_target
 
         out = []
 
@@ -219,25 +245,28 @@ class BoundFSMObject(BoundFSMBase):
             handler_fn = sub_handler._sa_fsm_transition_fn
             handler_self = sub_handler._sa_fsm_self
             sub_meta = sub_handler._sa_fsm_meta
+            arithmetics = TansitionStateArtithmetics(self.meta, sub_meta)
 
-            sub_sources = source_intersection(sub_meta.sources)
+            sub_sources = arithmetics.source_intersection()
             if not sub_sources:
                 raise exc.SetupError(
                     'Source state superset {super} '
                     'and subset {sub} are not compatable'.format(
-                        super=my_sources, sub=sub_meta.sources
+                        super=self.meta.sources,
+                        sub=sub_meta.sources
                     )
                 )
 
-            sub_target = target_intersection(sub_meta.target)
+            sub_target = arithmetics.target_intersection()
             if not sub_target:
                 raise exc.SetupError(
                     'Targets {super} and {sub} are not compatable'.format(
-                        super=my_target, sub=sub_meta.target
+                        super=self.meta.target,
+                        sub=sub_meta.target
                     )
                 )
-            sub_conditions = my_conditions + sub_meta.conditions
-            sub_args = (handler_self, ) + my_args + sub_meta.extra_call_args
+            sub_conditions = arithmetics.joint_conditions()
+            sub_args = (handler_self, ) + arithmetics.joint_args()
 
             sub_meta = meta.FSMMeta(
                 sub_sources, sub_target,

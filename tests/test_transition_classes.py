@@ -31,7 +31,7 @@ class SeparateDecoratedPublishHandler(object):
     def do_one(self, instance):
         instance.side_effect = "SeparatePublishHandler::did_one"
 
-    @transition(source='hidden')
+    @transition(target='pre_decorated_publish', source='hidden')
     def do_two(self, instance):
         instance.side_effect = "SeparatePublishHandler::did_two"
 
