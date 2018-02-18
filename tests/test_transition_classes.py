@@ -3,12 +3,16 @@ import sqlalchemy
 import pytest
 
 from sqlalchemy_fsm import FSMField, transition
-from sqlalchemy_fsm.exc import SetupError, PreconditionError, InvalidSourceStateError
+from sqlalchemy_fsm.exc import (
+    SetupError,
+    PreconditionError,
+    InvalidSourceStateError,
+)
 
 from tests.conftest import Base
 
 
-## Alternative syntax - separately defined transaction and sqlalchemy classes
+# Alternative syntax - separately defined transaction and sqlalchemy classes
 class SeparatePublishHandler(object):
 
     @transition(source='new')
@@ -18,6 +22,7 @@ class SeparatePublishHandler(object):
     @transition(source='hidden')
     def do_two(self, instance):
         instance.side_effect = "SeparatePublishHandler::did_two"
+
 
 @transition(target='pre_decorated_publish')
 class SeparateDecoratedPublishHandler(object):
@@ -30,10 +35,11 @@ class SeparateDecoratedPublishHandler(object):
     def do_two(self, instance):
         instance.side_effect = "SeparatePublishHandler::did_two"
 
+
 class AltSyntaxBlogPost(Base):
 
     __tablename__ = 'AltSyntaxBlogPost'
-    id = sqlalchemy.Column(sqlalchemy.Integer, primary_key = True)
+    id = sqlalchemy.Column(sqlalchemy.Integer, primary_key=True)
     state = sqlalchemy.Column(FSMField)
     side_effect = sqlalchemy.Column(sqlalchemy.String)
 
@@ -47,7 +53,9 @@ class AltSyntaxBlogPost(Base):
         pass
 
     pre_decorated_publish = SeparateDecoratedPublishHandler
-    post_decorated_publish = transition(target='post_decorated_publish')(SeparatePublishHandler)
+    post_decorated_publish = transition(target='post_decorated_publish')(
+        SeparatePublishHandler)
+
 
 class TestAltSyntaxBlogPost(object):
 
@@ -101,7 +109,11 @@ class TestAltSyntaxBlogPost(object):
 
         all_ids = [
             el.id
-            for el in hidden_records + pre_decorated_published + post_decorated_published
+            for el in (
+                hidden_records +
+                pre_decorated_published +
+                post_decorated_published
+            )
         ]
         for (handler, expected_group) in [
             ('hide', hidden_records),
@@ -136,5 +148,6 @@ class TestAltSyntaxBlogPost(object):
                 AltSyntaxBlogPost.id.in_(all_ids),
             ).all()
             assert len(not_matching) == (len(all_ids) - len(expected_group))
-            assert expected_ids.intersection(el.id for el in not_matching) == set(), \
-                expected_ids.intersection(el.id for el in not_matching)
+            assert not expected_ids.intersection(
+                el.id for el in not_matching
+            ), expected_ids.intersection(el.id for el in not_matching)

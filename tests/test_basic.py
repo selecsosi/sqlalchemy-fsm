@@ -2,13 +2,18 @@ import pytest
 import sqlalchemy
 
 from sqlalchemy_fsm import FSMField, transition
-from sqlalchemy_fsm.exc import SetupError, PreconditionError, InvalidSourceStateError
+from sqlalchemy_fsm.exc import (
+    SetupError,
+    PreconditionError,
+    InvalidSourceStateError,
+)
 
 from tests.conftest import Base
 
+
 class BlogPost(Base):
     __tablename__ = 'blogpost'
-    id = sqlalchemy.Column(sqlalchemy.Integer, primary_key = True)
+    id = sqlalchemy.Column(sqlalchemy.Integer, primary_key=True)
     state = sqlalchemy.Column(FSMField)
 
     def __init__(self, *args, **kwargs):
@@ -27,13 +32,14 @@ class BlogPost(Base):
     def removed(self):
         raise Exception('No rights to delete %s' % self)
 
-    @transition(source=['published','hidden'], target='stolen')
+    @transition(source=['published', 'hidden'], target='stolen')
     def stolen(self):
         pass
 
     @transition(source='*', target='moderated')
     def moderated(self):
         pass
+
 
 class TestFSMField(object):
 
@@ -49,7 +55,7 @@ class TestFSMField(object):
         assert 'FSMMeta' in repr(model.published._sa_fsm_meta)
 
     def test_known_transition_should_succeed(self, model):
-        assert not model.published() # Model is not publish-ed yet
+        assert not model.published()  # Model is not publish-ed yet
         assert model.published.can_proceed()
         model.published.set()
         assert model.state == 'published'
@@ -89,7 +95,6 @@ class TestFSMField(object):
         model.moderated.set()
         assert model.state == 'moderated'
 
-
     def test_query_filter(self, session):
         model1 = BlogPost()
         model2 = BlogPost()
@@ -123,7 +128,7 @@ class TestFSMField(object):
 
 class InvalidModel(Base):
     __tablename__ = 'invalidmodel'
-    id = sqlalchemy.Column(sqlalchemy.Integer, primary_key = True)
+    id = sqlalchemy.Column(sqlalchemy.Integer, primary_key=True)
     state = sqlalchemy.Column(FSMField)
     action = sqlalchemy.Column(FSMField)
 
@@ -136,6 +141,7 @@ class InvalidModel(Base):
     def validated(self):
         pass
 
+
 class TestInvalidModel(object):
     def test_two_fsmfields_in_one_model_not_allowed(self):
         model = InvalidModel()
@@ -146,7 +152,7 @@ class TestInvalidModel(object):
 
 class Document(Base):
     __tablename__ = 'document'
-    id = sqlalchemy.Column(sqlalchemy.Integer, primary_key = True)
+    id = sqlalchemy.Column(sqlalchemy.Integer, primary_key=True)
     status = sqlalchemy.Column(FSMField)
 
     def __init__(self, *args, **kwargs):
@@ -168,7 +174,7 @@ class TestDocument(object):
 class NullSource(Base):
     __tablename__ = 'null_source'
 
-    id = sqlalchemy.Column(sqlalchemy.Integer, primary_key = True)
+    id = sqlalchemy.Column(sqlalchemy.Integer, primary_key=True)
     status = sqlalchemy.Column(FSMField, nullable=True)
 
     @transition(source=None, target='published')
@@ -186,6 +192,7 @@ class NullSource(Base):
     @transition(source='*', target='end')
     def endFromAll(self):
         pass
+
 
 class TestNullSource(object):
 

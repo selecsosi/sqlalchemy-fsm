@@ -3,9 +3,14 @@ import sqlalchemy
 
 
 from sqlalchemy_fsm import FSMField, transition
-from sqlalchemy_fsm.exc import SetupError, PreconditionError, InvalidSourceStateError
+from sqlalchemy_fsm.exc import (
+    SetupError,
+    PreconditionError,
+    InvalidSourceStateError,
+)
 
 from tests.conftest import Base
+
 
 def condition_func(instance):
     return True
@@ -13,7 +18,7 @@ def condition_func(instance):
 
 class BlogPostWithConditions(Base):
     __tablename__ = 'BlogPostWithConditions'
-    id = sqlalchemy.Column(sqlalchemy.Integer, primary_key = True)
+    id = sqlalchemy.Column(sqlalchemy.Integer, primary_key=True)
     state = sqlalchemy.Column(FSMField)
 
     def __init__(self, *args, **kwargs):
@@ -26,11 +31,17 @@ class BlogPostWithConditions(Base):
     def unmet_condition(self):
         return False
 
-    @transition(source='new', target='published', conditions=[condition_func, model_condition])
+    @transition(
+        source='new', target='published',
+        conditions=[condition_func, model_condition]
+    )
     def published(self):
         pass
 
-    @transition(source='published', target='destroyed', conditions=[condition_func, unmet_condition])
+    @transition(
+        source='published', target='destroyed',
+        conditions=[condition_func, unmet_condition]
+    )
     def destroyed(self):
         pass
 

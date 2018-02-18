@@ -3,7 +3,11 @@ import sqlalchemy
 
 
 from sqlalchemy_fsm import FSMField, transition
-from sqlalchemy_fsm.exc import SetupError, PreconditionError, InvalidSourceStateError
+from sqlalchemy_fsm.exc import (
+    SetupError,
+    PreconditionError,
+    InvalidSourceStateError,
+)
 
 from tests.conftest import Base
 
@@ -13,20 +17,23 @@ def val_eq_condition(expected_value):
         return expected_value == actual_value
     return bound_val_eq_condition
 
+
 def val_contains_condition(expected_values):
     def bound_val_contains_condition(self, instance, actual_value):
         return actual_value in expected_values
     return bound_val_contains_condition
 
+
 def three_argument_condition(expected1, expected2, expected3):
     def bound_three_argument_condition(self, instance, arg1, arg2, arg3):
         return (arg1, arg2, arg3) == (expected1, expected2, expected3)
-    return bound_three_argument_condition   
+    return bound_three_argument_condition
+
 
 class MultiSourceBlogPost(Base):
 
     __tablename__ = 'MultiSourceBlogPost'
-    id = sqlalchemy.Column(sqlalchemy.Integer, primary_key = True)
+    id = sqlalchemy.Column(sqlalchemy.Integer, primary_key=True)
     state = sqlalchemy.Column(FSMField)
     side_effect = sqlalchemy.Column(sqlalchemy.String)
 
@@ -44,7 +51,7 @@ class MultiSourceBlogPost(Base):
         self.side_effect = "deleted"
 
     @transition(target='published', conditions=[
-        val_contains_condition([1,2])
+        val_contains_condition([1, 2])
     ])
     class publish(object):
 
@@ -75,13 +82,17 @@ class MultiSourceBlogPost(Base):
             three_argument_condition(1, 2, 3)
         ])
         def do_three_arg_mk1(self, instance, val1, val2, val3):
-            instance.side_effect = "did_three_arg_mk1::{}".format([val1, val2, val3])
+            instance.side_effect = "did_three_arg_mk1::{}".format([
+                val1, val2, val3
+            ])
 
         @transition(source='new', conditions=[
             three_argument_condition('str', -1, 42)
         ])
         def do_three_arg_mk2(self, instance, val1, val2, val3):
-            instance.side_effect = "did_three_arg_mk2::{}".format([val1, val2, val3])
+            instance.side_effect = "did_three_arg_mk2::{}".format([
+                val1, val2, val3
+            ])
 
 
 class TestMultiSourceBlogPost(object):
@@ -117,17 +128,20 @@ class TestMultiSourceBlogPost(object):
         assert model.side_effect == "did_three_arg_mk2::['str', -1, 42]"
 
     def unable_to_proceed_with_invalid_kwargs(self, model):
-        assert not model.noPreFilterPublish.can_proceed('str', -1, tomato='potato')
+        assert not model.noPreFilterPublish.can_proceed(
+            'str', -1, tomato='potato')
 
     def test_transition_two_incorrect_arg(self, model):
-        # Transition should be rejected because of top-level `val_contains_condition([1,2])` constraint
+        # Transition should be rejected because of
+        # top-level `val_contains_condition([1,2])` constraint
         with pytest.raises(PreconditionError) as err:
             model.publish.set(42)
         assert 'Preconditions are not satisfied' in str(err)
         assert model.state == 'new'
         assert model.side_effect == 'default'
 
-        # Verify that the exception can still be avoided with can_proceed() call
+        # Verify that the exception can still be avoided
+        # with can_proceed() call
         assert not model.publish.can_proceed(42)
         assert not model.publish.can_proceed(4242)
 
