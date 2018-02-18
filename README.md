@@ -1,3 +1,4 @@
+[![PyPI version](https://badge.fury.io/py/sqlalchemy-fsm.svg)](https://badge.fury.io/py/sqlalchemy-fsm)
 [![Build Status](https://travis-ci.org/VRGhost/sqlalchemy-fsm.svg?branch=master)](https://travis-ci.org/VRGhost/sqlalchemy-fsm)
 [![Coverage Status](https://coveralls.io/repos/github/VRGhost/sqlalchemy-fsm/badge.svg?branch=master)](https://coveralls.io/github/VRGhost/sqlalchemy-fsm?branch=master)
 

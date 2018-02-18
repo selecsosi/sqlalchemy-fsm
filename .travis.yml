@@ -5,8 +5,13 @@ python:
 env:
   - USE_MIN_PACKAGE_VERSIONS=no
   - USE_MIN_PACKAGE_VERSIONS=yes
+addons:
+    code_climate:
+      repo_token: 98492b2b5bbaf1cb15691d14f937120784e2bb8ba613005c4cf92251de7d1807
+
 install:
   - pip install -r requirements/develop.txt
+  - pip install codeclimate-test-reporter
   - |
     if [ "${USE_MIN_PACKAGE_VERSIONS}" == "yes" ];
     then
@@ -14,10 +19,11 @@ install:
     fi
   - pip freeze # Print versions of all installed packages for logging purposes
 script:
-  - py.test --pep8 ./sqlalchemy_fsm/
+  - py.test -m pep8
   - py.test
 after_success:
-  - coveralls
+  - codeclimate-test-reporter
+
 deploy:
   provider: pypi
   user: ilja_o

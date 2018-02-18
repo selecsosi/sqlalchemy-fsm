@@ -5,6 +5,7 @@ from setuptools import setup
 
 THIS_DIR = os.path.dirname(os.path.abspath(__file__))
 
+
 def get_readme():
     with open(os.path.join(THIS_DIR, 'README.md'), encoding='utf-8') as fobj:
         out = fobj.read()
@@ -12,12 +13,15 @@ def get_readme():
     try:
         import m2r
     except ImportError:
-        # must be running on fellow dev computer - no need to do fancy markdown conversion
+        # must be running on fellow dev computer - no need to do fancy
+        # markdown conversion
         return out
     else:
-        # Probably an sqlalchemy-fsm dev environment. Might be publishing to pypi.
+        # Probably an sqlalchemy-fsm dev environment.
+        #   Might be publishing to pypi.
         #   Better to perform the conversion
         return m2r.convert(out)
+
 
 setup(
     name='sqlalchemy_fsm',
