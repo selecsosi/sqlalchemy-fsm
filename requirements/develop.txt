@@ -2,8 +2,8 @@ pytest>=3.3.2
 pytest-cov>=2.5.1
 pytest-pep8>=1.0.6
 pytest-runner>=3.0
-python-coveralls>=2.9.1
 bump2version>=0.5.7
 m2r>=0.1.12
+coverage>=4.0,<4.4  # Until this is fixed: https://bitbucket.org/ned/coveragepy/issues/578/incomplete-file-path-in-xml-report (breaks codeclimate)
 
 -r production.txt

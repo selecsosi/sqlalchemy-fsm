@@ -6,9 +6,10 @@ from sqlalchemy_fsm import FSMField, transition, exc
 
 from tests.conftest import Base
 
+
 class NotFsm(Base):
     __tablename__ = 'NotFsm'
-    id = sqlalchemy.Column(sqlalchemy.Integer, primary_key = True)
+    id = sqlalchemy.Column(sqlalchemy.Integer, primary_key=True)
 
     @transition(source='*', target='blah')
     def change_state(self):
@@ -23,6 +24,7 @@ def test_not_fsm():
         NotFsm().change_state()
     assert 'No FSMField found in model' in str(err)
 
+
 def test_not_transition():
     with pytest.raises(AttributeError):
         NotFsm.not_transition.can_proceed()
@@ -30,14 +32,14 @@ def test_not_transition():
 
 class TooMuchFsm(Base):
     __tablename__ = 'TooMuchFsm'
-    id = sqlalchemy.Column(sqlalchemy.Integer, primary_key = True)
+    id = sqlalchemy.Column(sqlalchemy.Integer, primary_key=True)
     state1 = sqlalchemy.Column(FSMField)
     state2 = sqlalchemy.Column(FSMField)
-
 
     @transition(source='*', target='blah')
     def change_state(self):
         pass
+
 
 def test_too_much_fsm():
     with pytest.raises(exc.SetupError) as err:
@@ -57,6 +59,7 @@ def test_transition_raises_on_unknown():
         wrapper(MyCallable())
 
     assert 'Do not know how to' in str(err)
+
 
 def test_transition_raises_on_invalid_state():
     with pytest.raises(NotImplementedError) as err:
@@ -83,16 +86,17 @@ def test_transition_raises_on_invalid_state():
 
     assert '42' in str(err)
 
+
 def one_arg_condition():
     def one_arg_condition(instance, arg1):
         return True
     return one_arg_condition
 
+
 class MisconfiguredTransitions(Base):
     __tablename__ = 'MisconfiguredTransitions'
-    id = sqlalchemy.Column(sqlalchemy.Integer, primary_key = True)
+    id = sqlalchemy.Column(sqlalchemy.Integer, primary_key=True)
     state = sqlalchemy.Column(FSMField)
-
 
     @transition(source='*', target='blah', conditions=[
         one_arg_condition()
@@ -183,4 +187,6 @@ def test_unexpected_is__type(session):
             MisconfiguredTransitions.change_state.is_('hello world')
         ).all()
     assert not result
-    assert "Unexpected is_ argument: 'hello world'" in str(warn.list[0].message)
+    assert "Unexpected is_ argument: 'hello world'" in str(
+        warn.list[0].message
+    )

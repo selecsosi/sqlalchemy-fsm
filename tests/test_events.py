@@ -6,9 +6,10 @@ import sqlalchemy_fsm
 
 from tests.conftest import Base
 
+
 class EventModel(Base):
     __tablename__ = 'event_model'
-    id = sqlalchemy.Column(sqlalchemy.Integer, primary_key = True)
+    id = sqlalchemy.Column(sqlalchemy.Integer, primary_key=True)
     state = sqlalchemy.Column(sqlalchemy_fsm.FSMField)
 
     def __init__(self, *args, **kwargs):
@@ -30,7 +31,6 @@ class TestEventListener(object):
     def model(self):
         return EventModel()
 
-
     @pytest.mark.parametrize('event_name', [
         'before_state_change',
         'after_state_change',
@@ -47,7 +47,10 @@ class TestEventListener(object):
         expected_result = []
         assert listener_result == expected_result
 
-        for handle_name in ('state_a', 'state_b', 'state_a', 'state_a', 'state_b'):
+        for handle_name in (
+            'state_a', 'state_b', 'state_a',
+            'state_a', 'state_b'
+        ):
             expected_result.append((model.state, handle_name))
             if handle_name == 'state_a':
                 handle = model.stateA
@@ -55,7 +58,6 @@ class TestEventListener(object):
                 handle = model.stateB
             handle.set()
             assert listener_result == expected_result
-
 
         # Remove the listener & check that it had an effect
         sqlalchemy.event.remove(EventModel, event_name, on_update)
@@ -99,7 +101,7 @@ class TestEventListener(object):
 
 class TransitionClassEventModel(Base):
     __tablename__ = 'transition_class_event_model'
-    id = sqlalchemy.Column(sqlalchemy.Integer, primary_key = True)
+    id = sqlalchemy.Column(sqlalchemy.Integer, primary_key=True)
     state = sqlalchemy.Column(sqlalchemy_fsm.FSMField)
     side_effect = sqlalchemy.Column(sqlalchemy.String)
 
@@ -107,22 +109,22 @@ class TransitionClassEventModel(Base):
         self.state = 'new'
         super(TransitionClassEventModel, self).__init__(*args, **kwargs)
 
-    @sqlalchemy_fsm.transition(source='*', target='state_a') 
+    @sqlalchemy_fsm.transition(source='*', target='state_a')
     def stateA(self):
         pass
 
-    @sqlalchemy_fsm.transition(source='*', target='state_b') 
+    @sqlalchemy_fsm.transition(source='*', target='state_b')
     def stateB(self):
         pass
 
-    @sqlalchemy_fsm.transition(target='state_class') 
+    @sqlalchemy_fsm.transition(target='state_class')
     class stateClass(object):
 
-        @sqlalchemy_fsm.transition(source='state_a') 
+        @sqlalchemy_fsm.transition(source='state_a')
         def fromA(self, instance):
             instance.side_effect = 'from_a'
 
-        @sqlalchemy_fsm.transition(source='state_b') 
+        @sqlalchemy_fsm.transition(source='state_b')
         def fromB(self, instance):
             instance.side_effect = 'from_b'
 
@@ -148,7 +150,10 @@ class TestTransitionClassEvents(object):
         expected_result = []
         assert listener_result == expected_result
 
-        for handle_name in ('state_a', 'state_b', 'state_a', 'state_a', 'state_b'):
+        for handle_name in (
+            'state_a', 'state_b', 'state_a',
+            'state_a', 'state_b'
+        ):
             expected_result.append(handle_name)
             if handle_name == 'state_a':
                 handle = model.stateA
@@ -168,12 +173,13 @@ class TestTransitionClassEvents(object):
             assert model.side_effect == expected_side
             assert listener_result == expected_result
 
-
         # Remove the listener & check that it had an effect
-        sqlalchemy.event.remove(TransitionClassEventModel, event_name, on_update)
+        sqlalchemy.event.remove(
+            TransitionClassEventModel, event_name, on_update)
         # Call the state handle & ensure that listener had not been called.
         model.stateA.set()
         assert listener_result == expected_result
+
 
 class TestEventsLeakage(object):
     """Ensure that multiple FSM models do not mix their events up."""
@@ -202,7 +208,6 @@ class TestEventsLeakage(object):
         @sqlalchemy.event.listens_for(EventModel, event_name)
         def on_both_update(instance, source, target):
             joint_result.append(target)
-
 
         assert len(event_result) == 0
         assert len(tr_cls_result) == 0
