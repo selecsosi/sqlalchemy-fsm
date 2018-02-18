@@ -166,17 +166,14 @@ class TansitionStateArtithmetics(object):
     def target_intersection(self):
         target_a = self.metaA.target
         target_b = self.metaB.target
-        print target_a, target_b
-
         if target_a == target_b:
             # Also covers the case when both are None
             out = target_a
         elif None in (target_a, target_b):
-            not_none = [el for el in (target_a, target_b) if el]
-            out = not_none[0]
+            # Return value that is not None
+            out = target_a or target_b
         else:
             # Both are non-equal strings
-            assert target_a and target_b and target_a != target_b
             out = None
         return out
 
@@ -236,14 +233,9 @@ class BoundFSMObject(BoundFSMBase):
         return can_transition_with[0].to_next_state(args, kwargs)
 
     def mk_restricted_bound_sub_metas(self):
-        sqla_handle = self.sqla_handle
-        my_args = self.meta.extra_call_args
-
         out = []
 
         for sub_handler in self.sub_handlers:
-            handler_fn = sub_handler._sa_fsm_transition_fn
-            handler_self = sub_handler._sa_fsm_self
             sub_meta = sub_handler._sa_fsm_meta
             arithmetics = TansitionStateArtithmetics(self.meta, sub_meta)
 
@@ -265,14 +257,16 @@ class BoundFSMObject(BoundFSMBase):
                         sub=sub_meta.target
                     )
                 )
-            sub_conditions = arithmetics.joint_conditions()
-            sub_args = (handler_self, ) + arithmetics.joint_args()
 
             merged_sub_meta = meta.FSMMeta(
                 sub_sources, sub_target,
-                sub_conditions, sub_args, sub_meta.bound_cls
+                arithmetics.joint_conditions(),
+                (sub_handler._sa_fsm_self, ) + arithmetics.joint_args(),
+                sub_meta.bound_cls
             )
-            out.append(merged_sub_meta.get_bound(sqla_handle, handler_fn))
+            out.append(merged_sub_meta.get_bound(
+                self.sqla_handle, sub_handler._sa_fsm_transition_fn
+            ))
 
         return out
 
