@@ -1,4 +1,5 @@
 """ Transition decorator. """
+import warnings
 import inspect as py_inspect
 
 from functools import wraps
@@ -9,8 +10,9 @@ from sqlalchemy.ext.hybrid import HYBRID_METHOD
 from . import bound, util, exc
 from .meta import FSMMeta
 
+
 class ClassBoundFsmTransition(object):
-    
+
     def __init__(self, meta, sqla_handle, ownerCls):
         self._sa_fsm_meta = meta
         self._sa_fsm_owner_cls = ownerCls
@@ -22,6 +24,16 @@ class ClassBoundFsmTransition(object):
         target = self._sa_fsm_meta.target
         assert target, "Target must be defined at this level."
         return column == target
+
+    def is_(self, value):
+        if isinstance(value, bool):
+            out = self().is_(value)
+        else:
+            warnings.warn("Unexpected is_ argument: {!r}".format(value))
+            # Can be used as sqlalchemy filer. Won't match anything
+            out = False
+        return out
+
 
 class InstanceBoundFsmTransition(object):
 
@@ -52,7 +64,6 @@ class InstanceBoundFsmTransition(object):
             raise exc.PreconditionError("Preconditions are not satisfied.")
         return bound_meta.to_next_state(args, kwargs)
 
-
     def can_proceed(self, *args, **kwargs):
         bound_meta = self._sa_fsm_bound_meta
         return bound_meta.transition_possible() and bound_meta.conditions_met(
@@ -76,22 +87,27 @@ class FsmTransition(InspectionAttrInfo):
             sql_alchemy_handle = bound.SqlAlchemyHandle(owner, instance)
 
         if instance is None:
-            return ClassBoundFsmTransition(self.meta, sql_alchemy_handle, owner)
+            return ClassBoundFsmTransition(
+                self.meta, sql_alchemy_handle, owner)
         else:
             return InstanceBoundFsmTransition(
                 self.meta, sql_alchemy_handle, self.set_fn, owner, instance)
+
 
 def transition(source='*', target=None, conditions=()):
 
     def inner_transition(subject):
 
         if py_inspect.isfunction(subject):
-            meta = FSMMeta(source, target, conditions, (), bound.BoundFSMFunction)
+            meta = FSMMeta(
+                source, target, conditions, (), bound.BoundFSMFunction)
         elif py_inspect.isclass(subject):
             # Assume a class with multiple handles for various source states
-            meta = FSMMeta(source, target, conditions, (), bound.BoundFSMClass)
+            meta = FSMMeta(
+                source, target, conditions, (), bound.BoundFSMClass)
         else:
-            raise NotImplementedError("Do not know how to {!r}".format(subject))
+            raise NotImplementedError(
+                "Do not know how to {!r}".format(subject))
 
         return FsmTransition(meta, subject)
 
