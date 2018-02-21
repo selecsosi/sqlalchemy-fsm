@@ -1,5 +1,18 @@
 language: python
 
+install:
+  - pip install -r requirements/develop.txt
+  - pip install codeclimate-test-reporter
+  - |
+    if [ "${USE_MIN_PACKAGE_VERSIONS}" == "yes" ];
+    then
+      pip install "SQLAlchemy==1.0.0" "six==1.10.0";
+    fi
+  - pip freeze # Print versions of all installed packages for logging purposes
+
+after_success:
+  - codeclimate-test-reporter --token 98492b2b5bbaf1cb15691d14f937120784e2bb8ba613005c4cf92251de7d1807
+
 jobs:
   include:
     - stage: Test
@@ -9,21 +22,10 @@ jobs:
       env:
         - USE_MIN_PACKAGE_VERSIONS=no
         - USE_MIN_PACKAGE_VERSIONS=yes
-
-      install:
-        - pip install -r requirements/develop.txt
-        - pip install codeclimate-test-reporter
-        - |
-          if [ "${USE_MIN_PACKAGE_VERSIONS}" == "yes" ];
-          then
-            pip install "SQLAlchemy==1.0.0" "six==1.10.0";
-          fi
-        - pip freeze # Print versions of all installed packages for logging purposes
       script:
         - py.test -m pep8
         - py.test
-      after_success:
-        - codeclimate-test-reporter --token 98492b2b5bbaf1cb15691d14f937120784e2bb8ba613005c4cf92251de7d1807
+
     - stage: PyPI release
       deploy:
         provider: pypi
