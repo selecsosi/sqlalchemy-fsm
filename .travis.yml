@@ -34,4 +34,4 @@ deploy:
   on:
     branch: production
     python: 3.6
-    env: USE_MIN_PACKAGE_VERSIONS=no
+    condition: "${USE_MIN_PACKAGE_VERSIONS} == no"
