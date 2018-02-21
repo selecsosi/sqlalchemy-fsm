@@ -1,15 +1,11 @@
 language: python
 
-matrix:
- include:
-  - python: 2.7
-    env: USE_MIN_PACKAGE_VERSIONS=no
-  - python: 2.7
-    env: USE_MIN_PACKAGE_VERSIONS=yes
-  - python: 3.6
-    env: USE_MIN_PACKAGE_VERSIONS=no
-  - python: 3.6
-    env: USE_MIN_PACKAGE_VERSIONS=yes
+python:
+  - "2.7"
+  - "3.6"
+env:
+  - USE_MIN_PACKAGE_VERSIONS=no
+  - USE_MIN_PACKAGE_VERSIONS=yes
 
 install:
   - pip install -r requirements/develop.txt
