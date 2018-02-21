@@ -1,4 +1,4 @@
-from functools import wraps
+from functools import wraps, partial
 
 from sqlalchemy.orm.instrumentation import register_class
 
@@ -34,29 +34,28 @@ class InstanceRef(object):
         return self.target
 
 
+FSM_EVENT_DISPATCHER_CACHE = {}
+
+
+def get_class_bound_dispatcher(target_cls):
+    """Python class-bound FSM dispatcher class."""
+    try:
+        out_val = FSM_EVENT_DISPATCHER_CACHE[target_cls]
+    except KeyError:
+        out_val = register_class(target_cls).dispatch
+        FSM_EVENT_DISPATCHER_CACHE[target_cls] = out_val
+    return out_val
+
+
 class BoundFSMDispatcher(object):
     """Utility method that simplifies sqlalchemy event dispatch."""
 
-    # dispatcher = FSMSchemaEvents
-
     def __init__(self, instance):
-        self.manager = register_class(type(instance))
-        self.ref = InstanceRef(instance)
+        self.__ref = InstanceRef(instance)
+        self.__cls_dispatcher = get_class_bound_dispatcher(type(instance))
 
-        for name in dir(self.manager.dispatch):
-            if name.startswith('_'):
-                # Skip private fields
-                continue
-
-            attr = getattr(self.manager.dispatch, name)
-            if callable(attr):
-                setattr(self, name, self._makeBoundDispatchHandle(name))
-
-    def _makeBoundDispatchHandle(self, name):
-        handle = getattr(self.manager.dispatch, name)
-
-        def _wrapped_handle(*args, **kwargs):
-            return handle(self.ref, *args, **kwargs)
-        _wrapped_handle.__name__ = name
-
-        return _wrapped_handle
+    def __getattr__(self, name):
+        handle = partial(getattr(self.__cls_dispatcher, name), self.__ref)
+        setattr(self, name, handle)
+        return handle
+        
