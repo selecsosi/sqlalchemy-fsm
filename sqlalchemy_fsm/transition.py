@@ -13,6 +13,8 @@ from .meta import FSMMeta
 
 class ClassBoundFsmTransition(object):
 
+    __slots__ = ("_sa_fsm_meta", "_sa_fsm_owner_cls", "_sa_fsm_sqla_handle")
+
     def __init__(self, meta, sqla_handle, ownerCls):
         self._sa_fsm_meta = meta
         self._sa_fsm_owner_cls = ownerCls

@@ -62,8 +62,6 @@ class SqlAlchemyHandle(object):
 
 class BoundFSMBase(object):
 
-    meta = sqla_handle = None
-
     def __init__(self, meta, sqla_handle):
         self.meta = meta
         self.sqla_handle = sqla_handle
@@ -81,9 +79,9 @@ class BoundFSMBase(object):
 
     def transition_possible(self):
         return (
-            self.current_state in self.meta.sources
-        ) or (
             '*' in self.meta.sources
+        ) or (
+            self.current_state in self.meta.sources
         )
 
 
