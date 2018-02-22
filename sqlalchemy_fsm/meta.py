@@ -7,8 +7,10 @@ from . import util
 
 class FSMMeta(object):
 
-    transitions = conditions = sources = bound_cls = None
-    extra_call_args = ()
+    __slots__ = (
+        "target", "conditions", "sources",
+        "bound_cls", "extra_call_args",
+    )
 
     def __init__(
         self, source, target,

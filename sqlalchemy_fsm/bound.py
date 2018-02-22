@@ -3,6 +3,7 @@ Non-meta objects that are bound to a particular table & sqlalchemy instance.
 """
 
 import warnings
+import weakref
 import inspect as py_inspect
 
 from sqlalchemy import inspect as sqla_inspect
@@ -12,6 +13,40 @@ from . import exc, util, meta, events
 from .sqltypes import FSMField
 
 
+class _FsmColumnCache(object):
+    """Internal static cache object used to cache known FSMfields."""
+
+    __slots__ = ('ref_dict', )
+
+    def __init__(self):
+        self.ref_dict = weakref.WeakValueDictionary()
+
+    def getColumn(self, table_class):
+        try:
+            return self.ref_dict[table_class]
+        except KeyError:
+            # No cached value. Recompute
+            fsm_fields = [
+                col
+                for col in sqla_inspect(table_class).columns
+                if isinstance(col.type, FSMField)
+            ]
+
+            if len(fsm_fields) == 0:
+                raise exc.SetupError('No FSMField found in model')
+            elif len(fsm_fields) > 1:
+                raise exc.SetupError(
+                    'More than one FSMField found in model ({})'.format(
+                        fsm_fields
+                    )
+                )
+            out = fsm_fields[0]
+            self.ref_dict[table_class] = out
+            return out
+
+
+COLUMN_CACHE = _FsmColumnCache()
+
 class SqlAlchemyHandle(object):
 
     table_class = record = fsm_column = dispatch = None
@@ -19,27 +54,10 @@ class SqlAlchemyHandle(object):
     def __init__(self, table_class, table_record_instance=None):
         self.table_class = table_class
         self.record = table_record_instance
-        self.fsm_column = self.get_fsm_column(table_class)
+        self.fsm_column = COLUMN_CACHE.getColumn(table_class)
 
         if table_record_instance:
             self.dispatch = events.BoundFSMDispatcher(table_record_instance)
-
-    def get_fsm_column(self, table_class):
-        fsm_fields = [
-            col
-            for col in sqla_inspect(table_class).columns
-            if isinstance(col.type, FSMField)
-        ]
-
-        if len(fsm_fields) == 0:
-            raise exc.SetupError('No FSMField found in model')
-        elif len(fsm_fields) > 1:
-            raise exc.SetupError(
-                'More than one FSMField found in model ({})'.format(
-                    fsm_fields
-                )
-            )
-        return fsm_fields[0]
 
 
 class BoundFSMBase(object):
