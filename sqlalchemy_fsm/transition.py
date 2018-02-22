@@ -13,10 +13,16 @@ from .meta import FSMMeta
 
 class ClassBoundFsmTransition(object):
 
-    def __init__(self, meta, sqla_handle, ownerCls):
+    __slots__ = (
+        "_sa_fsm_meta", "_sa_fsm_owner_cls",
+        "_sa_fsm_sqla_handle", "_sa_fsm_transition_fn"
+    )
+
+    def __init__(self, meta, sqla_handle, paylaod_func, ownerCls):
         self._sa_fsm_meta = meta
         self._sa_fsm_owner_cls = ownerCls
         self._sa_fsm_sqla_handle = sqla_handle
+        self._sa_fsm_transition_fn = paylaod_func
 
     def __call__(self):
         """Return a SQLAlchemy filter for this particular state."""
@@ -42,7 +48,9 @@ class InstanceBoundFsmTransition(object):
         self._sa_fsm_transition_fn = transition_fn
         self._sa_fsm_owner_cls = ownerCls
         self._sa_fsm_self = instance
-        self._sa_fsm_bound_meta = meta.get_bound(sqla_handle, transition_fn)
+        self._sa_fsm_bound_meta = meta.get_bound(
+            sqla_handle, transition_fn, ()
+        )
 
     def __call__(self, *args, **kwargs):
         """Check if this is the current state of the object."""
@@ -74,6 +82,7 @@ class FsmTransition(InspectionAttrInfo):
 
     is_attribute = True
     extension_type = HYBRID_METHOD
+    _sa_fsm_is_transition = True
 
     def __init__(self, meta, set_function):
         self.meta = meta
@@ -88,7 +97,7 @@ class FsmTransition(InspectionAttrInfo):
 
         if instance is None:
             return ClassBoundFsmTransition(
-                self.meta, sql_alchemy_handle, owner)
+                self.meta, sql_alchemy_handle, self.set_fn, owner)
         else:
             return InstanceBoundFsmTransition(
                 self.meta, sql_alchemy_handle, self.set_fn, owner, instance)
