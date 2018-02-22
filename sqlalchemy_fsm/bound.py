@@ -105,6 +105,11 @@ class BoundFSMFunction(BoundFSMBase):
         return None
 
     def conditions_met(self, args, kwargs):
+        conditions = self.meta.conditions
+        if not conditions:
+            # Performance - skip the check
+            return True
+
         args = self.meta.extra_call_args + \
             (self.sqla_handle.record, ) + \
             tuple(args)
@@ -112,7 +117,7 @@ class BoundFSMFunction(BoundFSMBase):
         kwargs = dict(kwargs)
 
         out = True
-        for condition in self.meta.conditions:
+        for condition in conditions:
             # Check that condition is call-able with args provided
             if self.get_call_iface_error(condition, args, kwargs):
                 out = False
@@ -131,7 +136,7 @@ class BoundFSMFunction(BoundFSMBase):
                     "Failure to validate handler call args: {}".format(err))
                 # Can not map call args to handler's
                 out = False
-                if self.meta.conditions:
+                if conditions:
                     raise exc.SetupError(
                         "Mismatch beteen args accepted by preconditons "
                         "({!r}) & handler ({!r})".format(

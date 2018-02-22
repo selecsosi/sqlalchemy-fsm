@@ -24,6 +24,25 @@ class Benchmarked(Base):
     def hidden(self):
         pass
 
+    @sqlalchemy_fsm.transition(target='cls_transition')
+    class cls_move(object):
+
+        @sqlalchemy_fsm.transition(source='new')
+        def from_new(self, instance):
+            pass
+
+        @sqlalchemy_fsm.transition(source='published')
+        def from_pub(self, instance):
+            pass
+
+        @sqlalchemy_fsm.transition(source='hidden')
+        def from_hidden(self, instance):
+            pass
+
+        @sqlalchemy_fsm.transition(source='cls_transition')
+        def loop(self, instance):
+            pass
+
 
 class TestPerformanceSimple(object):
 
@@ -57,5 +76,17 @@ class TestPerformanceSimple(object):
 
             model.published.set()
             model.hidden.set()
+
+        benchmark(set_fn)
+
+    def test_cls_performance(self, benchmark, model):
+
+        def set_fn():
+            """Cycle through two set() ops."""
+            model.cls_move.set()
+            model.published.set()
+            model.cls_move.set()
+            model.hidden.set()
+            model.cls_move.set()
 
         benchmark(set_fn)
