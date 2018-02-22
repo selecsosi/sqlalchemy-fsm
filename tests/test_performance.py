@@ -89,4 +89,4 @@ class TestPerformanceSimple(object):
             model.hidden.set()
             model.cls_move.set()
 
-        benchmark(set_fn)
+        benchmark.pedantic(set_fn, rounds=10000)

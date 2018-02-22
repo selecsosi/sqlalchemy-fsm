@@ -42,8 +42,10 @@ class FSMMeta(object):
 
         self.sources = frozenset(all_sources)
 
-    def get_bound(self, sqlalchemy_handle, set_func):
-        return self.bound_cls(self, sqlalchemy_handle, set_func)
+    def get_bound(self, sqlalchemy_handle, set_func, extra_args):
+        return self.bound_cls(
+            self, sqlalchemy_handle, set_func, extra_args
+        )
 
     def __repr__(self):
         return "<{} sources={!r} target={!r} conditions={!r} " \

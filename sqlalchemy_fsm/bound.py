@@ -5,6 +5,7 @@ Non-meta objects that are bound to a particular table & sqlalchemy instance.
 import warnings
 import weakref
 import inspect as py_inspect
+from functools import partial
 
 from sqlalchemy import inspect as sqla_inspect
 
@@ -62,9 +63,10 @@ class SqlAlchemyHandle(object):
 
 class BoundFSMBase(object):
 
-    def __init__(self, meta, sqla_handle):
+    def __init__(self, meta, sqla_handle, extra_call_args):
         self.meta = meta
         self.sqla_handle = sqla_handle
+        self.extra_call_args = extra_call_args
 
     @property
     def target_state(self):
@@ -89,9 +91,11 @@ class BoundFSMFunction(BoundFSMBase):
 
     set_func = None
 
-    def __init__(self, meta, sqla_handle, set_func):
-        super(BoundFSMFunction, self).__init__(meta, sqla_handle)
+    def __init__(self, meta, sqla_handle, set_func, extra_call_args):
+        super(BoundFSMFunction, self).__init__(meta, sqla_handle, extra_call_args)
         self.set_func = set_func
+        self.my_args = self.meta.extra_call_args + self.extra_call_args + \
+            (self.sqla_handle.record, )
 
     def get_call_iface_error(self, fn, args, kwargs):
         """Returhs 'Type' error describing function's api mismatch (if one exists)
@@ -110,9 +114,7 @@ class BoundFSMFunction(BoundFSMBase):
             # Performance - skip the check
             return True
 
-        args = self.meta.extra_call_args + \
-            (self.sqla_handle.record, ) + \
-            tuple(args)
+        args = self.my_args + tuple(args)
 
         kwargs = dict(kwargs)
 
@@ -151,7 +153,7 @@ class BoundFSMFunction(BoundFSMBase):
 
         sqla_target = self.sqla_handle.record
 
-        args = self.meta.extra_call_args + (sqla_target, ) + tuple(args)
+        args = self.my_args + tuple(args)
 
         self.sqla_handle.dispatch.before_state_change(
             source=old_state, target=new_state
@@ -168,8 +170,12 @@ class BoundFSMFunction(BoundFSMBase):
         )
 
     def __repr__(self):
-        return "<{} meta={!r} instance={!r}>".format(
-            self.__class__.__name__, self.meta, self.sqla_handle)
+        return "<{} meta={!r} instance={!r} function={!r}>".format(
+            self.__class__.__name__,
+            self.meta,
+            self.sqla_handle,
+            self.set_func,
+        )
 
 
 class TansitionStateArtithmetics(object):
@@ -215,22 +221,107 @@ class TansitionStateArtithmetics(object):
         return self.metaA.extra_call_args + self.metaB.extra_call_args
 
 
-class BoundFSMObject(BoundFSMBase):
+class _InheritedBoundClasses(object):
 
-    def __init__(self, meta, sqlalchemy_handle, child_object):
-        super(BoundFSMObject, self).__init__(meta, sqlalchemy_handle)
-        # Collect sub-handlers
+    __slots__ = ('cache', )
+
+    def __init__(self):
+        self.cache = {}
+
+    def getBindableClass(self, child_cls, parent_meta):
+        try:
+            return self.cache[child_cls]
+        except KeyError:
+            # Not cached. Generate new one
+            out_cls = type(
+                '{}::sqlalchemy_handle'.format(
+                    child_cls.__name__,
+                ),
+                (child_cls, ),
+                {
+                    '_sa_fsm_sqlalchemy_handle': None,
+                    '_sa_fsm_sqlalchemy_metas': (),
+                }
+            )
+            sub_transitions = self._getSubTransitions(out_cls)
+            out_cls._sa_fsm_sqlalchemy_metas = tuple(
+                self._getBoundSubMetas(
+                    out_cls, sub_transitions, parent_meta
+                )
+            )
+
+            self.cache[child_cls] = out_cls
+            return out_cls
+
+    def _getSubTransitions(self, child_cls):
         sub_handlers = []
-        for name in dir(child_object):
+        for name in dir(child_cls):
             try:
-                attr = getattr(child_object, name)
-                meta = attr._sa_fsm_bound_meta
+                attr = getattr(child_cls, name)
+                if attr._sa_fsm_meta:
+                    sub_handlers.append((name, attr))
             except AttributeError:
                 # Skip non-fsm methods
                 continue
-            sub_handlers.append(attr)
-        self.sub_handlers = tuple(sub_handlers)
-        self.bound_sub_metas = tuple(self.mk_restricted_bound_sub_metas())
+        return sub_handlers
+
+    def _getBoundSubMetas(self, child_cls, sub_transitions, parent_meta):
+        out = []
+
+        for (name, transition) in sub_transitions:
+            sub_meta = transition._sa_fsm_meta
+            arithmetics = TansitionStateArtithmetics(parent_meta, sub_meta)
+
+            sub_sources = arithmetics.source_intersection()
+            if not sub_sources:
+                raise exc.SetupError(
+                    'Source state superset {super} '
+                    'and subset {sub} are not compatable'.format(
+                        super=parent_meta.sources,
+                        sub=sub_meta.sources
+                    )
+                )
+
+            sub_target = arithmetics.target_intersection()
+            if not sub_target:
+                raise exc.SetupError(
+                    'Targets {super} and {sub} are not compatable'.format(
+                        super=parent_meta.target,
+                        sub=sub_meta.target
+                    )
+                )
+
+            merged_sub_meta = meta.FSMMeta(
+                sub_sources, sub_target,
+                arithmetics.joint_conditions(),
+                arithmetics.joint_args(),
+                sub_meta.bound_cls
+            )
+            out.append((merged_sub_meta, transition._sa_fsm_transition_fn))
+
+        return out
+
+
+InheritedBoundClasses = _InheritedBoundClasses()
+
+
+class BoundFSMClass(BoundFSMBase):
+
+    def __init__(self, meta, sqlalchemy_handle, child_cls, extra_call_args):
+        super(BoundFSMClass, self).__init__(
+            meta, sqlalchemy_handle, extra_call_args
+        )
+        child_cls = InheritedBoundClasses.getBindableClass(child_cls, meta)
+        child_object = child_cls()
+        child_object._sa_fsm_sqlalchemy_handle = sqlalchemy_handle
+        self.bound_sub_metas = [
+            meta.get_bound(
+                sqlalchemy_handle,
+                set_fn,
+                (child_object, )
+            )
+            for (meta, set_fn) in child_object._sa_fsm_sqlalchemy_metas
+        ]
 
     @property
     def target_state(self):
@@ -261,60 +352,3 @@ class BoundFSMObject(BoundFSMBase):
         else:
             assert can_transition_with
         return can_transition_with[0].to_next_state(args, kwargs)
-
-    def mk_restricted_bound_sub_metas(self):
-        out = []
-
-        for sub_handler in self.sub_handlers:
-            sub_meta = sub_handler._sa_fsm_meta
-            arithmetics = TansitionStateArtithmetics(self.meta, sub_meta)
-
-            sub_sources = arithmetics.source_intersection()
-            if not sub_sources:
-                raise exc.SetupError(
-                    'Source state superset {super} '
-                    'and subset {sub} are not compatable'.format(
-                        super=self.meta.sources,
-                        sub=sub_meta.sources
-                    )
-                )
-
-            sub_target = arithmetics.target_intersection()
-            if not sub_target:
-                raise exc.SetupError(
-                    'Targets {super} and {sub} are not compatable'.format(
-                        super=self.meta.target,
-                        sub=sub_meta.target
-                    )
-                )
-
-            merged_sub_meta = meta.FSMMeta(
-                sub_sources, sub_target,
-                arithmetics.joint_conditions(),
-                (sub_handler._sa_fsm_self, ) + arithmetics.joint_args(),
-                sub_meta.bound_cls
-            )
-            out.append(merged_sub_meta.get_bound(
-                self.sqla_handle, sub_handler._sa_fsm_transition_fn
-            ))
-
-        return out
-
-
-class BoundFSMClass(BoundFSMObject):
-
-    def __init__(self, meta, sqlalchemy_handle, child_cls):
-        child_cls_with_bound_sqla = type(
-            '{}::sqlalchemy_handle::{}'.format(
-                child_cls.__name__,
-                id(sqlalchemy_handle)
-            ),
-            (child_cls, ),
-            {
-                '_sa_fsm_sqlalchemy_handle': sqlalchemy_handle,
-            }
-        )
-
-        bound_object = child_cls_with_bound_sqla()
-        super(BoundFSMClass, self).__init__(
-            meta, sqlalchemy_handle, bound_object)
