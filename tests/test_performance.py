@@ -61,13 +61,12 @@ class TestPerformanceSimple(object):
             model.hidden.set()
         session.commit()
         # Expected state - published
-        rv = benchmark(lambda: model.published())
+        rv = benchmark.pedantic(lambda: model.published(), rounds=10000)
         assert rv == in_expected_state
 
     def test_cls_selector(self, benchmark):
-        benchmark(
-            lambda: Benchmarked.published()
-        )
+        benchmark.pedantic(
+            lambda: Benchmarked.published(), rounds=10000)
 
     def test_set_performance(self, benchmark, model):
 
@@ -77,7 +76,7 @@ class TestPerformanceSimple(object):
             model.published.set()
             model.hidden.set()
 
-        benchmark(set_fn)
+        benchmark.pedantic(set_fn, rounds=10000)
 
     def test_cls_performance(self, benchmark, model):
 
