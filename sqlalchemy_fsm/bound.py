@@ -213,8 +213,10 @@ class TansitionStateArtithmetics(object):
 
 
 @cache.dictCache
-def InheritedBoundClasses((child_cls, parent_meta), ):
+def InheritedBoundClasses(key):
 
+    (child_cls, parent_meta) = key
+    
     def _getSubTransitions(child_cls):
         sub_handlers = []
         for name in dir(child_cls):

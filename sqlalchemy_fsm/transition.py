@@ -12,11 +12,12 @@ from .meta import FSMMeta
 
 
 @cache.dictCache
-def SqlEqualityCache((column, target), ):
+def SqlEqualityCache(key):
     """It takes a bit of time for sqlalchemy to generate these.
 
     So I'm caching them.
     """
+    (column, target) = key
     assert target, "Target must be defined."
     return column == target
 
