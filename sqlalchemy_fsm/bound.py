@@ -35,18 +35,24 @@ def COLUMN_CACHE(table_class):
 
 class SqlAlchemyHandle(object):
 
-    table_class = record = fsm_column = dispatch = None
+    __slots__ = (
+        "table_class", "record", "fsm_column",
+        "dispatch", "column_name",
+    )
 
     def __init__(self, table_class, table_record_instance=None):
         self.table_class = table_class
         self.record = table_record_instance
         self.fsm_column = COLUMN_CACHE.getValue(table_class)
+        self.column_name = self.fsm_column.name
 
         if table_record_instance:
             self.dispatch = events.BoundFSMDispatcher(table_record_instance)
 
 
 class BoundFSMBase(object):
+
+    __slots__ = ("meta", "sqla_handle", "extra_call_args")
 
     def __init__(self, meta, sqla_handle, extra_call_args):
         self.meta = meta
@@ -61,7 +67,7 @@ class BoundFSMBase(object):
     def current_state(self):
         return getattr(
             self.sqla_handle.record,
-            self.sqla_handle.fsm_column.name
+            self.sqla_handle.column_name
         )
 
     def transition_possible(self):
@@ -74,7 +80,7 @@ class BoundFSMBase(object):
 
 class BoundFSMFunction(BoundFSMBase):
 
-    set_func = None
+    __slots__ = BoundFSMBase.__slots__ + ("set_func", "my_args")
 
     def __init__(self, meta, sqla_handle, set_func, extra_call_args):
         super(BoundFSMFunction, self).__init__(meta, sqla_handle, extra_call_args)
@@ -147,7 +153,7 @@ class BoundFSMFunction(BoundFSMBase):
         self.set_func(*args, **kwargs)
         setattr(
             sqla_target,
-            self.sqla_handle.fsm_column.name,
+            self.sqla_handle.column_name,
             new_state
         )
         self.sqla_handle.dispatch.after_state_change(
@@ -279,6 +285,8 @@ def InheritedBoundClasses((child_cls, parent_meta), ):
 
 class BoundFSMClass(BoundFSMBase):
 
+    __slots__ = BoundFSMBase.__slots__ + ("bound_sub_metas", )
+
     def __init__(self, meta, sqlalchemy_handle, child_cls, extra_call_args):
         super(BoundFSMClass, self).__init__(
             meta, sqlalchemy_handle, extra_call_args
@@ -295,7 +303,7 @@ class BoundFSMClass(BoundFSMBase):
             for (meta, set_fn) in child_object._sa_fsm_sqlalchemy_metas
         ]
 
-    @property
+    @cache.caching_attr
     def target_state(self):
         targets = tuple(set(meta.meta.target for meta in self.bound_sub_metas))
         assert len(targets) == 1, "One and just one target expected"

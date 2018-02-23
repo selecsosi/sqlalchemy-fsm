@@ -47,7 +47,7 @@ class Benchmarked(Base):
 # Only enable this when profiling
 
 
-# @pytest.mark.skip
+@pytest.mark.skip
 class TestPerformanceSimple(object):
 
     @pytest.fixture
@@ -88,8 +88,8 @@ class TestPerformanceSimple(object):
             """Cycle through two set() ops."""
             model.cls_move.set()
             model.published.set()
-            model.cls_move.set()
-            model.hidden.set()
-            model.cls_move.set()
+            # model.cls_move.set()
+            # model.hidden.set()
+            # model.cls_move.set()
 
         benchmark.pedantic(set_fn, rounds=10000)

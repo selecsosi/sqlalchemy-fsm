@@ -28,6 +28,32 @@ def weakValueCache(getFunc):
         getFunc
     )
 
+
 def dictCache(getFunc):
     """Generic dict cache decorator"""
     return DictCache({}, getFunc)
+
+
+class caching_attr(object):
+    """An attribute that is only computed once."""
+
+    __slots__ = ("getValueFn", "value")
+
+    def __init__(self, getValueFn):
+        self.getValueFn = getValueFn
+
+    def __get__(self, instance, owner):
+        try:
+            return self.value
+        except AttributeError:
+            # Not cached yet
+            pass
+        if instance:
+            out = self.getValueFn(instance)
+            self.value = out
+        else:
+            raise NotImplementedError('Only works on instances at the moment')
+        return out
+
+    def __delete__(self, instance):
+        del self.value
