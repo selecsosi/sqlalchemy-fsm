@@ -47,7 +47,7 @@ class Benchmarked(Base):
 # Only enable this when profiling
 
 
-@pytest.mark.skip
+# @pytest.mark.skip
 class TestPerformanceSimple(object):
 
     @pytest.fixture
