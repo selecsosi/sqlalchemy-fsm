@@ -3,65 +3,56 @@ Non-meta objects that are bound to a particular table & sqlalchemy instance.
 """
 
 import warnings
-import weakref
+
 import inspect as py_inspect
 from functools import partial
 
 from sqlalchemy import inspect as sqla_inspect
 
 
-from . import exc, util, meta, events
+from . import exc, util, meta, events, cache
 from .sqltypes import FSMField
 
 
-class _FsmColumnCache(object):
-    """Internal static cache object used to cache known FSMfields."""
+@cache.weakValueCache
+def COLUMN_CACHE(table_class):
+    fsm_fields = [
+        col
+        for col in sqla_inspect(table_class).columns
+        if isinstance(col.type, FSMField)
+    ]
 
-    __slots__ = ('ref_dict', )
+    if len(fsm_fields) == 0:
+        raise exc.SetupError('No FSMField found in model')
+    elif len(fsm_fields) > 1:
+        raise exc.SetupError(
+            'More than one FSMField found in model ({})'.format(
+                fsm_fields
+            )
+        )
+    return fsm_fields[0]
 
-    def __init__(self):
-        self.ref_dict = weakref.WeakValueDictionary()
-
-    def getColumn(self, table_class):
-        try:
-            return self.ref_dict[table_class]
-        except KeyError:
-            # No cached value. Recompute
-            fsm_fields = [
-                col
-                for col in sqla_inspect(table_class).columns
-                if isinstance(col.type, FSMField)
-            ]
-
-            if len(fsm_fields) == 0:
-                raise exc.SetupError('No FSMField found in model')
-            elif len(fsm_fields) > 1:
-                raise exc.SetupError(
-                    'More than one FSMField found in model ({})'.format(
-                        fsm_fields
-                    )
-                )
-            out = fsm_fields[0]
-            self.ref_dict[table_class] = out
-            return out
-
-
-COLUMN_CACHE = _FsmColumnCache()
 
 class SqlAlchemyHandle(object):
 
-    table_class = record = fsm_column = dispatch = None
+    __slots__ = (
+        "table_class", "record", "fsm_column",
+        "dispatch", "column_name",
+    )
 
     def __init__(self, table_class, table_record_instance=None):
         self.table_class = table_class
         self.record = table_record_instance
-        self.fsm_column = COLUMN_CACHE.getColumn(table_class)
+        self.fsm_column = COLUMN_CACHE.getValue(table_class)
+        self.column_name = self.fsm_column.name
 
         if table_record_instance:
             self.dispatch = events.BoundFSMDispatcher(table_record_instance)
 
 
 class BoundFSMBase(object):
+
+    __slots__ = ("meta", "sqla_handle", "extra_call_args")
 
     def __init__(self, meta, sqla_handle, extra_call_args):
         self.meta = meta
@@ -76,7 +67,7 @@ class BoundFSMBase(object):
     def current_state(self):
         return getattr(
             self.sqla_handle.record,
-            self.sqla_handle.fsm_column.name
+            self.sqla_handle.column_name
         )
 
     def transition_possible(self):
@@ -89,7 +80,7 @@ class BoundFSMBase(object):
 
 class BoundFSMFunction(BoundFSMBase):
 
-    set_func = None
+    __slots__ = BoundFSMBase.__slots__ + ("set_func", "my_args")
 
     def __init__(self, meta, sqla_handle, set_func, extra_call_args):
         super(BoundFSMFunction, self).__init__(meta, sqla_handle, extra_call_args)
@@ -162,7 +153,7 @@ class BoundFSMFunction(BoundFSMBase):
         self.set_func(*args, **kwargs)
         setattr(
             sqla_target,
-            self.sqla_handle.fsm_column.name,
+            self.sqla_handle.column_name,
             new_state
         )
         self.sqla_handle.dispatch.after_state_change(
@@ -221,39 +212,12 @@ class TansitionStateArtithmetics(object):
         return self.metaA.extra_call_args + self.metaB.extra_call_args
 
 
-class _InheritedBoundClasses(object):
+@cache.dictCache
+def InheritedBoundClasses(key):
 
-    __slots__ = ('cache', )
-
-    def __init__(self):
-        self.cache = {}
-
-    def getBindableClass(self, child_cls, parent_meta):
-        try:
-            return self.cache[child_cls]
-        except KeyError:
-            # Not cached. Generate new one
-            out_cls = type(
-                '{}::sqlalchemy_handle'.format(
-                    child_cls.__name__,
-                ),
-                (child_cls, ),
-                {
-                    '_sa_fsm_sqlalchemy_handle': None,
-                    '_sa_fsm_sqlalchemy_metas': (),
-                }
-            )
-            sub_transitions = self._getSubTransitions(out_cls)
-            out_cls._sa_fsm_sqlalchemy_metas = tuple(
-                self._getBoundSubMetas(
-                    out_cls, sub_transitions, parent_meta
-                )
-            )
-
-            self.cache[child_cls] = out_cls
-            return out_cls
-
-    def _getSubTransitions(self, child_cls):
+    (child_cls, parent_meta) = key
+    
+    def _getSubTransitions(child_cls):
         sub_handlers = []
         for name in dir(child_cls):
             try:
@@ -265,7 +229,7 @@ class _InheritedBoundClasses(object):
                 continue
         return sub_handlers
 
-    def _getBoundSubMetas(self, child_cls, sub_transitions, parent_meta):
+    def _getBoundSubMetas(child_cls, sub_transitions, parent_meta):
         out = []
 
         for (name, transition) in sub_transitions:
@@ -301,17 +265,35 @@ class _InheritedBoundClasses(object):
 
         return out
 
+    out_cls = type(
+        '{}::sqlalchemy_handle'.format(
+            child_cls.__name__,
+        ),
+        (child_cls, ),
+        {
+            '_sa_fsm_sqlalchemy_handle': None,
+            '_sa_fsm_sqlalchemy_metas': (),
+        }
+    )
+    sub_transitions = _getSubTransitions(out_cls)
+    out_cls._sa_fsm_sqlalchemy_metas = tuple(
+        _getBoundSubMetas(
+            out_cls, sub_transitions, parent_meta
+        )
+    )
 
-InheritedBoundClasses = _InheritedBoundClasses()
+    return out_cls
 
 
 class BoundFSMClass(BoundFSMBase):
+
+    __slots__ = BoundFSMBase.__slots__ + ("bound_sub_metas", )
 
     def __init__(self, meta, sqlalchemy_handle, child_cls, extra_call_args):
         super(BoundFSMClass, self).__init__(
             meta, sqlalchemy_handle, extra_call_args
         )
-        child_cls = InheritedBoundClasses.getBindableClass(child_cls, meta)
+        child_cls = InheritedBoundClasses.getValue((child_cls, meta))
         child_object = child_cls()
         child_object._sa_fsm_sqlalchemy_handle = sqlalchemy_handle
         self.bound_sub_metas = [
@@ -323,7 +305,7 @@ class BoundFSMClass(BoundFSMBase):
             for (meta, set_fn) in child_object._sa_fsm_sqlalchemy_metas
         ]
 
-    @property
+    @cache.caching_attr
     def target_state(self):
         targets = tuple(set(meta.meta.target for meta in self.bound_sub_metas))
         assert len(targets) == 1, "One and just one target expected"
