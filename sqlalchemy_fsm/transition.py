@@ -7,8 +7,19 @@ from functools import wraps
 from sqlalchemy.orm.interfaces import InspectionAttrInfo
 from sqlalchemy.ext.hybrid import HYBRID_METHOD
 
-from . import bound, util, exc
+from . import bound, util, exc, cache
 from .meta import FSMMeta
+
+
+@cache.dictCache
+def SqlEqualityCache(key):
+    """It takes a bit of time for sqlalchemy to generate these.
+
+    So I'm caching them.
+    """
+    (column, target) = key
+    assert target, "Target must be defined."
+    return column == target
 
 
 class ClassBoundFsmTransition(object):
@@ -28,8 +39,7 @@ class ClassBoundFsmTransition(object):
         """Return a SQLAlchemy filter for this particular state."""
         column = self._sa_fsm_sqla_handle.fsm_column
         target = self._sa_fsm_meta.target
-        assert target, "Target must be defined at this level."
-        return column == target
+        return SqlEqualityCache.getValue((column, target))
 
     def is_(self, value):
         if isinstance(value, bool):
@@ -43,6 +53,10 @@ class ClassBoundFsmTransition(object):
 
 class InstanceBoundFsmTransition(object):
 
+    __slots__ = ClassBoundFsmTransition.__slots__ + (
+        "_sa_fsm_self", "_sa_fsm_bound_meta",
+    )
+
     def __init__(self, meta, sqla_handle, transition_fn, ownerCls, instance):
         self._sa_fsm_meta = meta
         self._sa_fsm_transition_fn = transition_fn
@@ -52,7 +66,7 @@ class InstanceBoundFsmTransition(object):
             sqla_handle, transition_fn, ()
         )
 
-    def __call__(self, *args, **kwargs):
+    def __call__(self):
         """Check if this is the current state of the object."""
         bound_meta = self._sa_fsm_bound_meta
         return bound_meta.target_state == bound_meta.current_state
