@@ -19,21 +19,25 @@ Usage
 -----
 
 Add FSMState field to you model
-    from sqlalchemy_fsm import FSMField, transition
 
-    class BlogPost(db.Model):
-        state = db.Column(FSMField, nullable = False)
+```python
+from sqlalchemy_fsm import FSMField, transition
 
+class BlogPost(db.Model):
+    state = db.Column(FSMField, nullable = False)
+```
 
 Use the `transition` decorator to annotate model methods
 
-    @transition(source='new', target='published')
-    def published(self):
-        """
-        This function may contain side-effects, 
-        like updating caches, notifying users, etc.
-        The return value will be discarded.
-        """
+```python
+@transition(source='new', target='published')
+def published(self):
+    """
+    This function may contain side-effects,
+    like updating caches, notifying users, etc.
+    The return value will be discarded.
+    """
+```
 
 `source` parameter accepts a list of states, or an individual state.
 You can use `*` for source, to allow switching to `target` from any state.
@@ -51,64 +55,73 @@ However, it is _not possible_ to create transition with `None` as target state d
 Transition can be also used on a class object to create a group of handlers
 for same target state.
 
-    @transition(target='published')
-    class PublishHandler(object):
+```python
+@transition(target='published')
+class PublishHandler(object):
 
-        @transition(source='new')
-        def do_one(self, instance, value):
-            instance.side_effect = "published from new"
+    @transition(source='new')
+    def do_one(self, instance, value):
+        instance.side_effect = "published from new"
 
-        @transition(source='draft')
-        def do_two(self, instance, value):
-            instance.side_effect = "published from draft"
+    @transition(source='draft')
+    def do_two(self, instance, value):
+        instance.side_effect = "published from draft"
 
 
-    class BlogPost(db.Model):
-        ...
-        published = PublishHandler
+class BlogPost(db.Model):
+    ...
+    published = PublishHandler
+```
 
 The transition is still to be invoked by calling the model's `published.set()` method.
 
 An alternative inline class syntax is supported too:
 
-    @transition(target='published')
-    class published(object):
+```python
+@transition(target='published')
+class published(object):
 
-        @transition(source='new')
-        def do_one(self, instance, value):
-            instance.side_effect = "published from new"
+    @transition(source='new')
+    def do_one(self, instance, value):
+        instance.side_effect = "published from new"
 
-        @transition(source='draft')
-        def do_two(self, instance, value):
-            instance.side_effect = "published from draft"
+    @transition(source='draft')
+    def do_two(self, instance, value):
+        instance.side_effect = "published from draft"
+```
 
 If calling `published.set()` succeeds without raising an exception, the state field
 will be changed, but not written to the database.
 
-    def publish_view(request, post_id):
-        post = get_object__or_404(BlogPost, pk=post_id)
-        if not post.published.can_proceed():
-             raise Http404;
+```python
+def publish_view(request, post_id):
+    post = get_object__or_404(BlogPost, pk=post_id)
+    if not post.published.can_proceed():
+         raise Http404;
 
-        post.published.set()
-        post.save()
-        return redirect('/')
-
+    post.published.set()
+    post.save()
+    return redirect('/')
+```
 
 If your given function requires arguments to validate, you need to include them
 when calling `can_proceed` as well as including them when you call the function
 normally. Say `publish.set()` required a date for some reason:
 
-    if not post.published.can_proceed(the_date):
-        raise Http404
-    else:
-        post.publish(the_date)
+```python
+if not post.published.can_proceed(the_date):
+    raise Http404
+else:
+    post.publish(the_date)
+```
 
 If your code needs to know the state model is currently in, you can just call
 the main function function.
 
-    if post.deleted():
-        raise Http404
+```python
+if post.deleted():
+    raise Http404
+```
 
 If you require some conditions to be met before changing state, use the
 `conditions` argument to `transition`. `conditions` must be a list of functions
@@ -120,34 +133,42 @@ will not happen. These functions should not have any side effects.
 
 You can use ordinary functions
 
-    def can_publish(instance):
-        # No publishing after 17 hours
-        if datetime.datetime.now().hour > 17:
-           return False
-        return True
+```python
+def can_publish(instance):
+    # No publishing after 17 hours
+    if datetime.datetime.now().hour > 17:
+       return False
+    return True
+```
 
 Or model methods
 
-    def can_destroy(self):
-        return not self.is_under_investigation()
+```python
+def can_destroy(self):
+    return not self.is_under_investigation()
+```
 
 Use the conditions like this:
 
-    @transition(source='new', target='published', conditions=[can_publish])
-    def publish(self):
-        """
-        Side effects galore
-        """
+```python
+@transition(source='new', target='published', conditions=[can_publish])
+def publish(self):
+    """
+    Side effects galore
+    """
 
-    @transition(source='*', target='destroyed', conditions=[can_destroy])
-    def destroy(self):
-        """
-        Side effects galore
-        """
+@transition(source='*', target='destroyed', conditions=[can_destroy])
+def destroy(self):
+    """
+    Side effects galore
+    """
+```
 
 You can also use FSM handlers to query the database. E.g.
 
-    session.query(BlogCls).filter(BlogCls.publish())
+```python
+session.query(BlogCls).filter(BlogCls.publish())
+```
 
 will return all "Blog" objects whose current state matches "publish"'es target state.
 
@@ -161,21 +182,24 @@ at the expected points of state's lifecycle.
 You can subscribe event listeners via standard SQLAlchemy interface of
 `listens_for` or `listen`.
 
-    from sqlalchemy.event import listens_for
+```python
+from sqlalchemy.event import listens_for
 
-    @listens_for(Blog, 'before_state_change')
-    def on_state_change(instance, source, target):
-        ...
+@listens_for(Blog, 'before_state_change')
+def on_state_change(instance, source, target):
+    ...
+```
 
 Or
 
-    from sqlalchemy import event
+```python
+from sqlalchemy import event
 
-    def on_state_change(instance, source, target):
-        ...
+def on_state_change(instance, source, target):
+    ...
 
-    event.listen(Blog, 'after_state_change', on_state_change)
-
+event.listen(Blog, 'after_state_change', on_state_change)
+```
 
 It is possible to de-register an event listener call with `sqlalchemy.event.remove()` method.
 
