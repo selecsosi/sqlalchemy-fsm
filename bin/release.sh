@@ -55,7 +55,7 @@ git checkout production
 git merge -X theirs --squash master
 
 # Execute tests (just in case)
-python3 "${PROJECT_DIR}/setup.py" test
+python "${PROJECT_DIR}/setup.py" test
 bumpversion --allow-dirty --message 'New release on {utcnow}: {new_version}' "${BUMPED_VERSION}"
 
 git push origin production --tags
