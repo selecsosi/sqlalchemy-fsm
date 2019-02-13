@@ -49,13 +49,13 @@ if [ "${CURRENT_BRANCH}" != "master" ]; then
     exit 1
 fi
 
-require_clean_work_tree 
+require_clean_work_tree
 
 git checkout production
 git merge -X theirs --squash master
 
 # Execute tests (just in case)
-python "${PROJECT_DIR}/setup.py" test
+python3 "${PROJECT_DIR}/setup.py" test
 bumpversion --allow-dirty --message 'New release on {utcnow}: {new_version}' "${BUMPED_VERSION}"
 
 git push origin production --tags
