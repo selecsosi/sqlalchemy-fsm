@@ -146,9 +146,9 @@ class BoundFSMFunction(BoundFSMBase):
 
         args = self.my_args + tuple(args)
 
-        self.sqla_handle.dispatch.before_state_change(
-            source=old_state, target=new_state
-        )
+        # self.sqla_handle.dispatch.before_state_change(
+        #     source=old_state, target=new_state
+        # )
 
         self.set_func(*args, **kwargs)
         setattr(
@@ -156,9 +156,9 @@ class BoundFSMFunction(BoundFSMBase):
             self.sqla_handle.column_name,
             new_state
         )
-        self.sqla_handle.dispatch.after_state_change(
-            source=old_state, target=new_state
-        )
+        # self.sqla_handle.dispatch.after_state_change(
+        #     source=old_state, target=new_state
+        # )
 
     def __repr__(self):
         return "<{} meta={!r} instance={!r} function={!r}>".format(

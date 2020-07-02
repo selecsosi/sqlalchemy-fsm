@@ -53,12 +53,11 @@ class BoundFSMDispatcher(object):
     def __init__(self, instance):
         self.__ref = InstanceRef(instance)
         self.__cls_dispatcher = get_class_bound_dispatcher(type(instance))
-        for fsm_handle in ('before_state_change', 'after_state_change'):
+        # for fsm_handle in ('before_state_change', 'after_state_change'):
             # Precompute fsm handles
-            getattr(self, fsm_handle)
+            # getattr(self, fsm_handle)
 
     def __getattr__(self, name):
         handle = partial(getattr(self.__cls_dispatcher, name), self.__ref)
         setattr(self, name, handle)
         return handle
-        
